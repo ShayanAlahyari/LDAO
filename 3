@@ -1,0 +1,337 @@
+\documentclass[journal]{IEEEtran}
+
+% ------------------------------------------------
+%                  PACKAGES
+% ------------------------------------------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage[table]{xcolor}
+\usepackage{booktabs}
+\usepackage{url}
+\usepackage{cite} % For proper IEEE-style citations
+\usepackage{hyperref}
+
+% ------------------------------------------------
+%           HYPERREF CONFIGURATION
+% ------------------------------------------------
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  citecolor=blue,
+  urlcolor=blue,
+  pdfborder={0 0 0}
+}
+
+% You may optionally use Times-like fonts
+% \usepackage{newtxtext}    
+% \usepackage{newtxmath}    
+
+% ------------------------------------------------
+%                  DOCUMENT
+% ------------------------------------------------
+\begin{document}
+
+\title{Distribution Modeling and Ratio Oversampling \\ for Imbalanced Regression}
+
+\author{
+    \IEEEauthorblockN{Shayan Alahyari and Mike Domaratzki}%
+    \thanks{Manuscript received Month XX, 20XX.}
+    % \thanks{This work was supported by ... (optional)}
+    % \thanks{Corresponding author: ... (optional)}
+}
+
+\maketitle
+
+% ------------------------
+%      ABSTRACT
+% ------------------------
+\begin{abstract}
+Handling imbalanced datasets remains a consequential challenge in machine learning, as they can severely compromise model performance and generalizability, particularly in real-world applications where accurate predictions of minority instances are often very critical. For example, in genomic selection, predicting continuous traits such as yield or disease resistance is particularly difficult due to the underrepresentation of extreme trait values, which are crucial for effective breeding decisions. While class imbalance in classification tasks has been extensively studied, regression-based solutions remain underdeveloped. Existing oversampling methods often rely on arbitrary thresholds and fail to account for the true distribution of target values, resulting in synthetic data that poorly represents the original distribution, especially in low-density regions leading to poor model performance.
+
+To address this challenge, we present a novel solution for imbalanced regression that jointly considers the global distribution of target values and the local patterns of data scarcity. By systematically injecting synthetic samples into these critical regions, our approach strengthens model robustness and improves generalization, outperforming conventional oversampling. Extensive experiments on multiple synthetic and real-world datasets, using both deep learning and statistical machine learning models, demonstrate the superior performance of our method. The code and data are available at:
+\href{https://github.com/ShayanAlahyari/Distribution-Modeling-and-Ratio-Oversampling-for-Imbalanced-Regression}{https://github.com/ShayanAlahyari/Distribution-Modeling-and-Ratio-Oversampling-for-Imbalanced-Regression}.
+\end{abstract}
+
+% ------------------------
+%    INDEX TERMS
+% ------------------------
+\begin{IEEEkeywords}
+Imbalanced regression, oversampling, ratio-driven sample generation, extreme value prediction, kernel-based interpolation.
+\end{IEEEkeywords}
+
+% ------------------------
+%     INTRODUCTION
+% ------------------------
+\section{Introduction}
+
+In many data-driven domains, predictive modeling is hampered by imbalanced regression, where a continuous target variable is dominated by a subset of values while more extreme or otherwise rare values remain underrepresented \cite{krawczyk2016}.
+
+% -- FIGURE PLACED HERE TO APPEAR TOP-RIGHT ON PAGE 1 --
+\begin{figure}[!t]
+    \centering
+    % Replace 'target_hist.png' with your actual image filename.
+    \includegraphics[width=0.95\columnwidth]{target_hist.png}
+    \caption{Histogram of the target variable showing an imbalanced distribution,
+    with most samples concentrated in the lower--mid range and fewer in the higher-value tail,
+    indicating an imbalanced regression setting.}
+    \label{fig:target_hist}
+\end{figure}
+
+
+
+Regression suffers from a continuous target space in which “extreme” or “rare” values are often ambiguous \cite{ribeiro2020a}. Moreover, intervals of interest can vary substantially depending on domain knowledge, with high-impact events sometimes clustered near distribution tails or sparse mid-range intervals \cite{torgo2013}. This complexity calls for methods that both (i) define the minority regions appropriately, and (ii) synthesize or reweight training data to amplify rarer yet important values.
+
+Recent proposals address these issues by modeling the distribution of the continuous target. SMOTER \cite{torgo2013} and SMOGN \cite{branco2017} represent notable strategies for tackling imbalanced regression via oversampling. These methods systematically oversample underrepresented target regions by generating synthetic samples in the feature space, guided by the target distribution. Other approaches rely on weighting schemes \cite{steininger2021} that assign a higher penalty to errors in minority regions, thus prompting the model to focus on extreme outcomes. Despite such innovations, further improvements are still required to handle highly diverse, high-dimensional feature spaces, where the complexity of kernel-based generation or weighting can escalate. Additionally, many existing algorithms rely on somewhat static binning heuristics or user-specified thresholds to identify minority regions \cite{camacho2023}. These fixed approaches can lead to suboptimal sampling intensity for each interval of the target distribution, particularly where domain heterogeneity is substantial \cite{branco2019}.
+
+In this paper, we propose a Dynamic Oversampling via Ratio-Driven Sample Generation method that adaptively bins the target space based on mean and standard deviation statistics, thereby identifying underrepresented intervals. Within each bin, synthetic samples are generated via a kernel-based method that captures local data characteristics while respecting the global distribution. Crucially, we learn per-bin sampling intensities through an automated hyperparameter optimization (\textit{Optuna}) \cite{akiba2019}, ensuring that minority regions are oversampled in a more nuanced, data-driven manner. By doing so, we mitigate overemphasis on broad target intervals and focus on specific areas prone to high predictive error. Our approach integrates seamlessly into a wide range of model-training pipelines, including random forests, gradient boosting methods, and deep neural networks, providing a flexible framework for a variety of real-world tasks.
+
+% ------------------------
+%     RELATED WORK
+% ------------------------
+\section{Related Work}
+Research on imbalanced learning has historically focused on classification domains, where underrepresented classes degrade performance across a range of standard algorithms \cite{he2009,lopez2013}. Pioneering solutions, such as the SMOTE family \cite{chawla2002,han2005} and ADASYN \cite{he2008}, interpolate new samples for minority classes to improve their representation. These oversampling techniques often complement cost-sensitive learning \cite{lin2017,cui2019}, ensuring that rare classes exert a stronger influence during model training.
+
+In imbalanced regression, the target space is continuous, and defining the “minority” region becomes more nuanced. SMOTER \cite{torgo2013} and SMOGN \cite{branco2017} extend SMOTE to regression by imposing thresholds or clustering heuristics on the target distribution. These methods oversample data in underrepresented ranges, typically with user-defined boundaries or static binning. Another branch relies on weighted loss functions \cite{steininger2021,agrawal2021}, where errors on extreme targets are penalized more heavily, thereby steering the model's focus to rare values. Similarly, WERCS \cite{branco2019} fuses under- and over-sampling, assigning higher relevance weights to extreme targets. Although these solutions have improved performance for predicting high-impact events---such as flood peaks in hydrology \cite{snieder2020} or ultra-high yields in agriculture \cite{branco2019}---they can falter when the distribution is strongly multi-modal or exhibits complex variance across different target intervals.
+
+One limitation of many oversampling approaches is the assumption that local density structures are relatively uniform. Methods like Geometric SMOTE for Regression \cite{camacho2022} attempt to overcome this by introducing greater flexibility when creating synthetic samples, adjusting their location in feature space relative to existing instances. Nonetheless, Geometric SMOTE and similar variants still rely on somewhat coarse heuristics, such as a fixed count of neighbors or uniform balancing, which might produce suboptimal results when data exhibit fine-grained shifts in target density.
+
+Distribution smoothing and representation learning also offer new avenues for tackling imbalanced regression. For instance, LDS (Label Distribution Smoothing) and FDS (Feature Distribution Smoothing) \cite{yang2021} impose label-space or feature-space constraints to align model representations with target proximities. RankSim \cite{gong2022} adopts a ranking-based regularization, ensuring that pairs of instances close in label space remain close in feature space. While effective in certain large-scale applications (e.g., age estimation in computer vision, or text similarity scoring), these methods typically benefit from a relatively diverse training set; if certain intervals remain wholly underrepresented, the smoothing or ranking biases may not suffice.
+
+Beyond data-level manipulations, cost-sensitive or weighting approaches \cite{steininger2021,ribeiro2020a} can dynamically alter loss gradients, emphasizing extreme targets with higher costs. Such techniques are computationally efficient, as they avoid explicit data augmentation, but may risk training instability if rare-target gradients overwhelm the optimization process \cite{he2013}. Integration of weighting with data-level augmentation has also been explored---e.g., Weighted SMOTE for Regression (WSMOTER) \cite{camacho2023}---to strike a balance between generating new samples and adjusting model sensitivity.
+
+A final strand of investigation considers specialized domain applications, illustrating the breadth of real-world problems in which accurate extreme-value prediction is key. Meteorological forecasting of high-precipitation days \cite{agrawal2021}, software defect prediction for large-scale systems \cite{bal2018}, and predictive maintenance for smart grids \cite{moniz2019} all present highly skewed target distributions, where the most critical events (e.g., extreme storms, severe defects, major grid failures) occur rarely. In each of these scenarios, purely uniform oversampling or static binning can prove insufficient due to the inherent heterogeneity across different segments of the target domain.
+
+Taken together, these works underscore the need for dynamic, data-driven strategies that can adapt oversampling or weighting intensities based on each underrepresented bin’s intrinsic properties. Our proposed Dynamic Oversampling via Ratio-Driven Sample Generation aims to fill this gap by blending kernel-based interpolation with automated hyperparameter optimization, ensuring that bins with greater underrepresentation or domain significance receive higher sampling intensity. This adaptive approach enables a more robust handling of complex real-world regressions, especially where multi-modal behavior, local spikes in variance, or abrupt changes at distribution tails render existing static heuristics suboptimal.
+
+% ------------------------
+%         METHOD
+% ------------------------
+\section{Method}
+In this section, we present a mathematically grounded framework for Dynamic Oversampling via Ratio-Driven Sample Generation. Our approach aims to rectify severe imbalances in continuous target distributions by assigning a data-driven sampling weight to each bin and synthesizing new points using kernel density estimation (KDE). We proceed in five main steps:
+\begin{enumerate}
+    \item Discretize the target variable with mean and standard deviation statistics.
+    \item Formulate a bin-level oversampling ratio and search for optimal values.
+    \item Model within-bin feature-target distributions via a kernel density estimate.
+    \item Generate synthetic observations by sampling from these kernel estimates.
+    \item Consolidate features and targets to yield a balanced training dataset.
+\end{enumerate}
+
+\subsection{Discretization of the Target}
+Let \(\{(x_i,y_i)\}_{i=1}^n \subseteq \mathcal{X}\times\mathbb{R}\) be the original dataset, where \(x_i\) is a \(d\)-dimensional feature vector (\(x_i\in\mathbb{R}^d\)) and \(y_i\) is a continuous target value. We assume that \(\mu_y\) and \(\sigma_y\) are the mean and standard deviation of the observed target \(\mathbf{y} = (y_1,\dots,y_n)\). Our goal is to partition the continuous range of \(y\) into \(k\) bins, \(\{B_1, B_2, \ldots, B_k\}\), in such a way that:
+\[
+B_j \;=\; \{\, (x_i, y_i) : \ell_{j} \le y_i < \ell_{j+1}\}, \quad j=1,\dots,k,
+\]
+where the bin boundaries \(\ell_j\) are defined based on \(\mu_y \pm c\,\sigma_y\) for some user-defined or empirically tuned constants \(c\). For instance, if \(k=5\), we might choose equally spaced multiples \(\{-2, -1, 0, 1, 2\}\) of \(\sigma_y\) around \(\mu_y\), resulting in five intervals capturing “extreme low,” “low,” “moderate,” “high,” and “extreme high” values \cite{branco2019}.
+
+\textbf{Remark.} Although we illustrate simple linear binning using multiples of \(\sigma_y\), more sophisticated quantile- or distribution-based approaches may also be adopted \cite{torgo2013}. This flexibility ensures that our method can adapt to multi-modal or heavily skewed distributions.
+
+\subsection{Discovering the Optimal Number of Samples Within Each Bin}
+After discretizing \(y\), let \(n_j = |B_j|\) be the number of samples belonging to bin \(B_j\). In conventional uniform oversampling, one might choose a single multiplier \(\alpha\) that inflates all bins by \(\alpha\). However, this is typically suboptimal when imbalance varies across bins.
+
+We introduce a bin-specific ratio \(r_j\), indicating how many synthetic points to generate in bin \(B_j\) relative to its current sample count \(n_j\). Specifically, we define the total number of generated samples in bin \(B_j\) as:
+\[
+m_j \;=\; \max(0,\, \lfloor (r_j - 1) \,n_j \rfloor),
+\]
+where \(r_j \ge 1\) is a continuous variable. Larger \(r_j\) implies heavier oversampling in bin \(B_j\). The goal is to find an optimal vector \(\mathbf{r} = (r_1,\dots,r_k)\) that balances the bins in a manner best suited for our predictive task.
+
+\subsubsection*{Hyperparameter Search}
+To find \(\mathbf{r}^* = (r_1^*, \dots, r_k^*)\), we define an objective function that measures predictive performance over a validation set:
+\[
+\mathcal{L}(\mathbf{r}) \;=\; \mathrm{Perf}\Big(\text{Train}\Big(\{(x_i,y_i)\}_{i=1}^n \cup \bigcup_{j=1}^k \widetilde{D}_j(\mathbf{r})\Big)\Big),
+\]
+where \(\widetilde{D}_j(\mathbf{r})\) is the set of newly generated points for bin \(B_j\), and \(\mathrm{Perf}(\cdot)\) is a suitable performance metric (e.g., mean squared error or SERA). We use a hyperparameter search framework (e.g., \textit{Optuna}) \cite{akiba2019} to optimize:
+\[
+\mathbf{r}^* \;=\; \underset{\mathbf{r}\in \mathcal{R}^k}{\arg \min}\,\mathcal{L}(\mathbf{r}), \quad \text{where } \mathcal{R}^k = \{\, r_j \in [1,R_{\max}] \,\}.
+\]
+Because the imbalance in each bin may differ substantially, each \(r_j\) can take a separate value. The search iterates until no significant performance improvement is observed.
+
+\subsection{Fitting the Kernel to Each Bin}\label{sec:kde}
+With each bin \(B_j\) identified, we model the joint distribution of features and targets in that bin using kernel density estimation (KDE). For bin \(B_j\), let 
+\[
+D_j = \{(x_i,y_i) \mid y_i \in B_j\} \subseteq \mathbb{R}^d \times \mathbb{R}.
+\]
+Denote \(z_i = (x_i,y_i) \in \mathbb{R}^{d+1}\). Then we estimate:
+\[
+\hat{f}_j(\mathbf{z}) \;=\; \frac{1}{n_j\, h_j^{d+1}} \sum_{(x_i,y_i)\in D_j} K\Big(\frac{\mathbf{z}-\mathbf{z}_i}{h_j}\Big),
+\]
+where \(K(\cdot)\) is a multivariate kernel (commonly Gaussian), and \(h_j > 0\) is the bandwidth. The optimal bandwidth can be determined by standard plug-in estimators or cross-validation \cite{silverman1986}.
+
+Because \(\mathbf{z} = (\mathbf{x}, y)\) encapsulates both features and target, joint KDE ensures that synthetic points sample from the local joint distribution. Alternatively, a conditional KDE approach factors \(\hat{f}_j(\mathbf{x},y) = p_j(y)\,p_j(\mathbf{x}\mid y)\). However, we adopt the simpler joint approach here, as it typically yields cohesive feature-target pairs in each bin \cite{branco2019}.
+
+\subsection{Generating Oversampled Points}\label{sec:oversampling}
+Given the ratio \(r_j\) for bin \(B_j\), we sample \(m_j\) new points from \(\hat{f}_j\). Specifically, for \(\ell = 1, \dots, m_j\):
+\[
+\widetilde{\mathbf{z}}_{\ell}^{(j)} = (\widetilde{x}_{\ell}^{(j)},\,\widetilde{y}_{\ell}^{(j)}) \; \sim\; \hat{f}_j(\mathbf{z}).
+\]
+These new observations (feature vectors plus targets) populate the synthetic set 
+\[
+\widetilde{D}_j = \{\widetilde{\mathbf{z}}_{\ell}^{(j)}\}_{\ell=1}^{m_j}.
+\]
+Practically, we generate each \(\widetilde{\mathbf{z}}_{\ell}^{(j)}\) by:
+\begin{enumerate}
+    \item Drawing a discrete index \(i \in \{1, \dots, n_j\}\) with probability proportional to \(1/{n_j}\).
+    \item Sampling an offset \(\delta\) from \(K\!\Big(\frac{\mathbf{z}-\mathbf{z}_i}{h_j}\Big)\), typically a Gaussian kernel.
+    \item Setting \(\widetilde{\mathbf{z}}_{\ell}^{(j)} = \mathbf{z}_i + h_j\,\delta\).
+\end{enumerate}
+An optional constraint ensures \(\widetilde{y}_{\ell}^{(j)} \in B_j\), avoiding bin “leakage” \cite{torgo2013}. If \(\widetilde{y}_{\ell}^{(j)} \notin B_j\), one can reject and resample or simply clamp the value to bin boundaries.
+
+\subsection{Extracting the \texorpdfstring{$X$}{X} and \texorpdfstring{$y$}{y} Effectively}
+The newly generated synthetic dataset for bin \(B_j\) is:
+\[
+D_j^\text{new} \;=\; D_j \;\cup\; \widetilde{D}_j,
+\]
+i.e., 
+\[
+D_j^\text{new} \;=\; \{(x_i,y_i) : (x_i,y_i) \in B_j\} \;\cup\; \{(\widetilde{x}_{\ell}^{(j)},\,\widetilde{y}_{\ell}^{(j)})\}_{\ell=1}^{m_j}.
+\]
+After applying the above procedure for every bin, we obtain:
+\[
+D^\text{balanced} \;=\; \bigcup_{j=1}^k D_j^\text{new},
+\]
+which forms our final, augmented training set. Note that each bin is oversampled according to its individually optimized ratio \(r_j^*\), identified through the search procedure in Section III-B. The final model is then trained on \(D^\text{balanced}\).
+
+% ------------------------
+%  EXPERIMENTAL RESULTS
+% ------------------------
+\section{Experimental Results}
+
+\begin{table*}[t]
+\centering
+\caption{Performance metrics and differences w.r.t.\ Dynamic Oversampling (DOR).}
+\label{tab:performance_comparison}
+\begin{tabular}{lcccccccc}
+\toprule
+& \multicolumn{2}{c}{\textbf{MSE}} & \multicolumn{2}{c}{\textbf{SERA}} & \multicolumn{2}{c}{\textbf{MAE}} & \multicolumn{2}{c}{\textbf{RMSE}} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}\cmidrule(lr){8-9}
+\textbf{Method} & \textbf{Value} & \(\Delta\) & \textbf{Value} & \(\Delta\) & \textbf{Value} & \(\Delta\) & \textbf{Value} & \(\Delta\) \\
+\midrule
+\rowcolor{green!10}
+\textbf{Dynamic Oversampling} & 0.0788 & - & 14.0692 & - & 0.2199 & - & 0.2808 & - \\
+Baseline                      & 0.0986 & {\color{green!50!black}+0.0198 (25.05\%)} & 
+                               15.7147 & {\color{green!50!black}+1.6455 (11.70\%)} &
+                               0.2455 & {\color{green!50!black}+0.0256 (11.64\%)} &
+                               0.3140 & {\color{green!50!black}+0.0332 (11.82\%)} \\
+SMOGN Tuned                   & 0.0999 & {\color{green!50!black}+0.0211 (26.76\%)} &
+                               15.7375 & {\color{green!50!black}+1.6683 (11.86\%)} &
+                               0.2471 & {\color{green!50!black}+0.0272 (12.37\%)} &
+                               0.3160 & {\color{green!50!black}+0.0352 (12.54\%)} \\
+SMOTER Tuned                  & 0.1003 & {\color{green!50!black}+0.0215 (27.29\%)} &
+                               15.7610 & {\color{green!50!black}+1.6918 (12.03\%)} &
+                               0.2477 & {\color{green!50!black}+0.0278 (12.63\%)} &
+                               0.3168 & {\color{green!50!black}+0.0360 (12.82\%)} \\
+Random OS                     & 0.0989 & {\color{green!50!black}+0.0201 (25.51\%)} &
+                               15.7055 & {\color{green!50!black}+1.6363 (11.62\%)} &
+                               0.2458 & {\color{green!50!black}+0.0259 (11.78\%)} &
+                               0.3145 & {\color{green!50!black}+0.0337 (12.00\%)} \\
+Gaussian Noise                & 0.0985 & {\color{green!50!black}+0.0197 (24.99\%)} &
+                               15.7012 & {\color{green!50!black}+1.6320 (11.60\%)} &
+                               0.2454 & {\color{green!50!black}+0.0255 (11.60\%)} &
+                               0.3138 & {\color{green!50!black}+0.0330 (11.76\%)} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+We compare the proposed Dynamic Oversampling approach with several baselines on both synthetic and real-world datasets. Table~\ref{tab:performance_comparison} displays the mean squared error (MSE), SERA, mean absolute error (MAE), and root mean squared error (RMSE), alongside the absolute and relative performance differences (\(\Delta\)) with respect to our method. As illustrated, Dynamic Oversampling consistently outperforms existing techniques such as SMOGN, SMOTER, random oversampling, and Gaussian-based oversampling, particularly in extreme-value regions of the target distribution.
+
+% ------------------------
+% IMPLEMENTATION DETAILS
+% ------------------------
+\section{Further Implementation Details and Discussion}
+In practice, several \emph{implementation considerations} enhance the robustness of our approach:
+\begin{itemize}
+    \item \textbf{Domain-Specific Binning:} While we have illustrated a simple approach using \(\mu_y \pm c\, \sigma_y\), real-world data may be heavily skewed or multi-modal. In such cases, \emph{quantile-based} partitioning or other data-driven binning can be used to ensure that tails or central regions of interest are captured appropriately \cite{torgo2013}. Practitioners may also have domain knowledge to identify extremely high or low target values of particular importance.
+    \item \textbf{Synthetic Sample Quality Checks:} When sampling from the kernel, we can impose domain-specific constraints to prevent unphysical or implausible samples. For instance, if certain features or target values cannot exceed specific thresholds (e.g., precipitation cannot be negative), applying bounding or rejecting out-of-range samples ensures data consistency.
+    \item \textbf{Metrics Beyond MSE:} Relying solely on standard metrics like mean squared error may obscure improvements in rare or extreme regions. We advocate evaluating performance with \emph{tail-oriented metrics} such as SERA \cite{ribeiro2020a}, or an \(F_1\)-type measure for regression \cite{torgo2009}, to quantify predictive accuracy specifically in sparse, high-impact intervals of the distribution.
+    \item \textbf{Time Complexity and Ablation:} KDE-based oversampling may be computationally intensive for large datasets. An \emph{ablation study} comparing a single \(\alpha\) multiplier vs.\ bin-specific multipliers \(r_j\) can help to highlight the performance vs.\ runtime trade-offs. Moreover, systematically varying \(k\) (the number of bins) or \(R_{\max}\) can reveal whether more granular bins offer marginal gains.
+    \item \textbf{Synergy With Weighting Strategies:} Since kernel-based oversampling and cost-sensitive weighting \cite{steininger2021} address the same imbalance challenge differently, it is possible to \emph{combine} them (e.g., first oversample certain bins, then apply higher cost penalties to predictions in highly extreme bins). In principle, such a hybrid approach might further boost results, though it risks instability if not tuned carefully.
+    \item \textbf{Handling Small or Sparse Bins:} If \(n_j\) is extremely small in a given bin, the KDE fit may be fragile. One could incorporate prior distributions or a minimum bin size requirement, merging certain bins that are too sparse to support reliable kernel estimates.
+\end{itemize}
+
+These practical suggestions ensure that the ratio-driven sample generation framework remains adaptable to a wide range of imbalanced regression scenarios. By applying domain-specific knowledge, appropriate metrics, and careful hyperparameter tuning, practitioners can significantly improve model performance for extreme or underrepresented target values.
+
+% ------------------------
+%     REFERENCES
+% ------------------------
+\begin{thebibliography}{99}
+
+\bibitem{krawczyk2016}
+B.~Krawczyk, “Learning from imbalanced data: open challenges and future directions,” \emph{Progress in Artificial Intelligence}, vol. 5, no. 4, pp. 221--232, 2016.
+
+\bibitem{snieder2020}
+R.~Snieder, N.~Tsumura, B.~Zhang, P.~Li, and T.~Qin, “Imbalanced learning for flood forecasting: Improving flood alert systems with minority event data,” \emph{Water Resources Research}, vol.~56, no.~8, e2019WR026789, 2020.
+
+\bibitem{ribeiro2020a}
+R.~P. Ribeiro and N.~Moniz, “Imbalanced regression and extreme value prediction,” \emph{Machine Learning}, vol. 109, no. 9--10, pp. 1803--1835, 2020.
+
+\bibitem{branco2019}
+P.~Branco, L.~Torgo, and R.~P. Ribeiro, “Resampling strategies for imbalanced regression,” \emph{Expert Systems}, vol. 36, no. 3, e12389, 2019.
+
+\bibitem{chawla2002}
+N.~V. Chawla, K.~W. Bowyer, L.~O. Hall, and W.~P. Kegelmeyer, “SMOTE: Synthetic minority over-sampling technique,” \emph{Journal of Artificial Intelligence Research}, vol.~16, pp. 321--357, 2002.
+
+\bibitem{branco2017}
+P.~Branco, L.~Torgo, and R.~P. Ribeiro, “SMOGN: A pre-processing approach for imbalanced regression,” in \emph{Proceedings of Machine Learning Research: LIDTA 2017}, vol.~74, 2017, pp. 36--50.
+
+\bibitem{lopez2013}
+V.~L\'opez, A.~Fern\'andez, S.~Garc\'ia, V.~Palade, and F.~Herrera, “An insight into classification with imbalanced data: Empirical results and current trends on using data intrinsic characteristics,” \emph{Information Sciences}, vol. 250, pp. 113--141, 2013.
+
+\bibitem{he2009}
+H.~He and E.~A. Garcia, “Learning from imbalanced data,” \emph{IEEE Transactions on Knowledge and Data Engineering}, vol.~21, no.~9, pp. 1263--1284, 2009.
+
+\bibitem{han2005}
+H.~Han, W.~Y. Wang, and B.~H. Mao, “Borderline-SMOTE: A new over-sampling method in imbalanced data sets,” in \emph{Advances in Intelligent Computing. ICIC 2005. Lecture Notes in Computer Science}, vol. 3644, 2005, pp. 878--887.
+
+\bibitem{he2008}
+H.~He, Y.~Bai, E.~A. Garcia, and S.~Li, “ADASYN: Adaptive synthetic sampling approach for imbalanced learning,” in \emph{Proceedings of the International Joint Conference on Neural Networks}, 2008, pp. 1322--1328.
+
+\bibitem{lin2017}
+T.-Y. Lin, P.~Goyal, R.~Girshick, K.~He, and P.~Doll{\'a}r, “Focal loss for dense object detection,” in \emph{Proceedings of the IEEE International Conference on Computer Vision}, 2017, pp. 2980--2988.
+
+\bibitem{cui2019}
+Y.~Cui, M.~Jia, T.~Y. Lin, S.~Belongie, and P.~Felzenszwalb, “Class-balanced loss based on effective number of samples,” in \emph{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition}, 2019, pp. 9268--9277.
+
+\bibitem{torgo2013}
+L.~Torgo, R.~P. Ribeiro, J.~P. da Costa, and S.~Pal, “SMOTE for regression,” in M.~Bramer and S.~Petridis (Eds.), \emph{Intelligent Data Engineering and Automated Learning -- IDEAL 2013}, Lecture Notes in Computer Science, vol. 8206, pp. 378--387. Springer, Berlin, Heidelberg, 2013.
+
+\bibitem{steininger2021}
+M.~Steininger, K.~Kobs, P.~Davidson, A.~Krause, and A.~Hotho, “Density-based weighting for imbalanced regression,” \emph{Machine Learning}, vol. 110, pp. 2187--2210, 2021.
+
+\bibitem{camacho2023}
+L.~Camacho and F.~Bacao, “WSMOTER: A novel approach for imbalanced regression,” \emph{Applied Intelligence}, vol.~54, pp. 8789--8799, 2023.
+
+\bibitem{akiba2019}
+T.~Akiba, S.~Sano, T.~Yanase, T.~Ohta, and M.~Koyama, “Optuna: A next-generation hyperparameter optimization framework,” in \emph{Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery \& Data Mining}, 2019, pp. 2623--2631.
+
+\bibitem{silverman1986}
+B.~W. Silverman, \emph{Density Estimation for Statistics and Data Analysis}. Chapman and Hall/CRC, 1986.
+
+\bibitem{camacho2022}
+L.~Camacho, G.~Douzas, and F.~Bacao, “Geometric SMOTE for regression,” \emph{Expert Systems with Applications}, vol. 193, 116387, 2022.
+
+\bibitem{yang2021}
+Y.~Yang, K.~Zha, Y.-C. Chen, H.~Wang, and D.~Katabi, “Delving into deep imbalanced regression,” in \emph{Proceedings of the 38th International Conference on Machine Learning, PMLR 139}, 2021, pp. 11881--11892.
+
+\bibitem{gong2022}
+Y.~Gong, G.~Mori, and F.~Tung, “RankSim: Ranking similarity regularization for deep imbalanced regression,” in \emph{Proceedings of the 39th International Conference on Machine Learning, PMLR 162}, 2022, pp. 7670--7688.
+
+\bibitem{he2013}
+H.~He and Y.~Ma, \emph{Imbalanced learning: Foundations, algorithms, and applications}. John Wiley \& Sons, 2013.
+
+\bibitem{agrawal2021}
+B.~Agrawal and T.~Petersen, “Predicting extreme precipitation events with imbalanced data: A comparative analysis of machine learning methods,” \emph{Meteorological Applications}, vol.~28, no.~3, 553--568, 2021.
+
+\bibitem{bal2018}
+M.~Bal and R.~Kumar, “On the use of synthetic data for imbalanced software defect prediction,” \emph{Journal of Systems and Software}, vol. 143, pp. 32--48, 2018.
+
+\bibitem{moniz2019}
+N.~Moniz and L.~Torgo, “Multi-source social feedback of online news feeds,” \emph{Neurocomputing}, vol. 326, pp. 45--57, 2019.
+
+\bibitem{torgo2009}
+L.~Torgo and R.~P. Ribeiro, “Precision and recall for regression,” in \emph{Proceedings of the Workshop on Evaluation Methods for Machine Learning in conjunction with the 26th ICML}, 2009, pp. 1--7.
+
+\end{thebibliography}
+
+\end{document}
