@@ -69,22 +69,23 @@ Imbalanced regression, oversampling, ratio-driven sample generation, extreme val
 
 In many data-driven domains, predictive modeling is hampered by imbalanced regression, where a continuous target variable is dominated by a subset of values while more extreme or otherwise rare values remain underrepresented \cite{krawczyk2016}.
 
+
 % -- FIGURE PLACED HERE TO APPEAR TOP-RIGHT ON PAGE 1 --
 \begin{figure}[!t]
     \centering
-    % Replace 'target_hist.png' with your actual image filename.
-    \includegraphics[width=0.95\columnwidth]{target_hist.png}
+    \includegraphics[width=1\columnwidth]{target_hist.png}
+    \vspace{-18em}
     \caption{Histogram of the target variable showing an imbalanced distribution,
     with most samples concentrated in the lower--mid range and fewer in the higher-value tail,
     indicating an imbalanced regression setting.}
     \label{fig:target_hist}
 \end{figure}
 
-
-
 Regression suffers from a continuous target space in which “extreme” or “rare” values are often ambiguous \cite{ribeiro2020a}. Moreover, intervals of interest can vary substantially depending on domain knowledge, with high-impact events sometimes clustered near distribution tails or sparse mid-range intervals \cite{torgo2013}. This complexity calls for methods that both (i) define the minority regions appropriately, and (ii) synthesize or reweight training data to amplify rarer yet important values.
 
 Recent proposals address these issues by modeling the distribution of the continuous target. SMOTER \cite{torgo2013} and SMOGN \cite{branco2017} represent notable strategies for tackling imbalanced regression via oversampling. These methods systematically oversample underrepresented target regions by generating synthetic samples in the feature space, guided by the target distribution. Other approaches rely on weighting schemes \cite{steininger2021} that assign a higher penalty to errors in minority regions, thus prompting the model to focus on extreme outcomes. Despite such innovations, further improvements are still required to handle highly diverse, high-dimensional feature spaces, where the complexity of kernel-based generation or weighting can escalate. Additionally, many existing algorithms rely on somewhat static binning heuristics or user-specified thresholds to identify minority regions \cite{camacho2023}. These fixed approaches can lead to suboptimal sampling intensity for each interval of the target distribution, particularly where domain heterogeneity is substantial \cite{branco2019}.
+
+
 
 In this paper, we propose a Dynamic Oversampling via Ratio-Driven Sample Generation method that adaptively bins the target space based on mean and standard deviation statistics, thereby identifying underrepresented intervals. Within each bin, synthetic samples are generated via a kernel-based method that captures local data characteristics while respecting the global distribution. Crucially, we learn per-bin sampling intensities through an automated hyperparameter optimization (\textit{Optuna}) \cite{akiba2019}, ensuring that minority regions are oversampled in a more nuanced, data-driven manner. By doing so, we mitigate overemphasis on broad target intervals and focus on specific areas prone to high predictive error. Our approach integrates seamlessly into a wide range of model-training pipelines, including random forests, gradient boosting methods, and deep neural networks, providing a flexible framework for a variety of real-world tasks.
 
