@@ -1,0 +1,389 @@
+\documentclass[12pt]{article}
+
+% ------------------------------------------------
+%                  PACKAGES
+% ------------------------------------------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage[table]{xcolor}
+\usepackage{booktabs}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{cite}
+\usepackage{subcaption}
+
+% ------------------------------------------------
+%           HYPERREF CONFIGURATION
+% ------------------------------------------------
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  citecolor=blue,
+  urlcolor=blue,
+  pdfborder={0 0 0}
+}
+
+% -----------------------------
+%  SINGLE-COLUMN PAGE SETUP
+% -----------------------------
+\usepackage[margin=1in]{geometry}
+
+\begin{document}
+
+\title{BIKO: a novel framework for imbalanced regression}
+\author{
+    \textbf{Shayan Alahyari, Mike Domaratzki}
+    \thanks{Manuscript received Month XX, 20XX.}
+    % \thanks{This work was supported by ... (optional)}
+    % \thanks{Corresponding author: ... (optional)}
+}
+
+\date{}
+\maketitle
+
+% ------------------------
+%      ABSTRACT
+% ------------------------
+\begin{abstract}
+Learning from imbalanced data is a major challenge in machine learning, especially for neural networks, which tend to perform poorly under such conditions. Imbalance regression describes a situation where the target values are continuous yet disproportionately distributed, resulting in skewed data and challenges comparable to those in imbalanced classification. Although this issue has been widely investigated in classification, it remains relatively unexplored in regression, with only a limited number of approaches available. Existing oversampling methods often rely on arbitrary thresholds without accounting for the original data distribution in different subregions, leading to oversampled data that deviate from the true distribution. To address this gap, we propose BIKO (Bin-wise Isolated Kernel Oversampling), a novel method for imbalanced regression that accounts for both the global data distribution and the local distribution of scarce regions. By oversampling each subregion in isolation without altering other regions, BIKO boosts overall performance as well as performance on rare samples. Extensive experiments on 43 datasets including both low-dimensional and high-dimensional datasets show that our method outperforms state-of-the-art oversampling techniques SMOGN, DenseLoss and G-SMOTE. The code and data are available at:
+\href{https://github.com/ShayanAlahyari/Distribution-Modeling-and-Ratio-Oversampling-for-Imbalanced-Regression}{https://github.com/ShayanAlahyari/BIKO}.
+\end{abstract}
+
+% ------------------------
+%    INDEX TERMS
+% ------------------------
+\begin{flushleft}
+\textbf{Index Terms}—Imbalanced regression, SMOTE, oversampling, ratio-driven sample generation, extreme value prediction, kernel-based sampling.
+\end{flushleft}
+
+% ------------------------
+%     INTRODUCTION
+% ------------------------
+\section{Introduction}
+
+\begin{figure}[!t]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \includegraphics[width=\textwidth]{imbalanced_classification.png}
+        \vspace{-1em}
+        \caption{Two-class scatter plot with a decision boundary on synthetic imbalanced data.}
+        \label{fig:imbalanced_classification}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \includegraphics[width=\textwidth]{sparse_region.png}
+        \vspace{-1em}
+        \caption{Histogram of the target values from the boston dataset.}
+        \label{fig:sparse_region}
+    \end{subfigure}
+    \caption{(a) Classification scenario with an explicitly labeled minority class, making it straightforward to identify.
+    (b) Continuous‐target scenario where “rare” outcomes lie at the distribution’s sparse tail, creating subtler challenges than discrete labels.}
+    \label{fig:two_figures_side_by_side}
+\end{figure}
+
+In classification tasks, imbalance occurs when certain classes have significantly fewer samples
+compared to others, which can happen in both binary and multi-class settings
+\cite{he2009,Haixiang2017}. In these situations, the minority classes become overshadowed
+by the majority classes, leading traditional classifiers to focus on the more prevalent classes
+\cite{chawla2002}. This imbalance results in inaccurate detection of minority classes, as models
+struggle to capture patterns within these sparsely sampled regions \cite{buda2018}.
+Consequently, critical applications such as fraud detection, medical diagnostics, or fault
+detection are especially affected, since small but important classes may be overlooked
+\cite{johnson2019}. Accurate handling of imbalanced data is therefore essential for reliable
+performance across all classes, ensuring that rare but significant instances receive proper
+attention \cite{liu2009}.
+
+While imbalance is commonly discussed in classification tasks \cite{he2009}, it also
+occurs in regression tasks where the goal is to predict continuous numeric values
+\cite{krawczyk2016}. Imbalanced regression specifically refers to situations where certain
+ranges of target values — usually rare or extreme cases — have significantly fewer samples
+than others \cite{branco2016,torgo2013}. In these scenarios, traditional regression models
+often fail to accurately predict these rare target values because they are biased toward
+more frequent, densely sampled regions \cite{chawla2004,branco2016}. This makes accurate
+prediction in minority or scarce regions especially challenging, yet critically important
+in many real-world applications \cite{torgo2013}. Figure~\ref{fig:two_figures_side_by_side} compares imbalanced classification with imbalanced regression. In subfigure~\ref{fig:imbalanced_classification}, identifying a minority class is straightforward because each label is discrete; one can simply count how many samples fall under each label. In subfigure~\ref{fig:sparse_region}, however, a minority region appears within the continuous target distribution itself, where some outcomes are found in sparsely populated tails. Unlike classification, where imbalance is tied to distinct labels, regression imbalance is defined by the distribution’s shape (which can be skewed or multi-modal). Consequently, standard approaches from classification do not readily extend to regression, as there is no simple way to “count labels” to isolate underrepresented target values. This makes accurately detecting and mitigating sparse ranges a key challenge in imbalanced regression.
+
+ 
+
+
+Many real-world applications are struggling with imbalanced data. In genomic prediction, continuous trait values such as pathogenicity scores are frequently skew toward certain levels, leaving extreme, deleterious variants in sparsely populated tails. Standard regression models often struggle with these infrequent but clinically critical extremes\cite{kaur24}. In spatio-temporal forecasting of extreme wind events, most observations lie around moderate wind speeds, while very high speed wind events, crucial for hazard warnings, energy grid stability, and wind farm operations, occur only rarely. As a result, conventional regression models trained on the bulk of moderate data tend to underestimate or completely miss these high impact outliers, leading to compromised performance precisely when accurate forecasts are most essential\cite{scheepens23}. In healthcare, hospital length‐of‐stay data often skews heavily. Most patients are discharged quickly, but a smaller subset remains hospitalized much longer. If models only learn from short‐stay cases, they fail to capture the extended‐stay minority leading to underestimates of these resource‐intensive admissions. Accurate modeling of rare, longer stays is crucial for managing bed capacity and staff scheduling, particularly under high‐stress conditions such as a pandemic\cite{xu2022}.
+
+
+In response, specialized techniques have emerged. Some adapt SMOTE by creating synthetic instances in the tail ends of the target distribution\cite{torgo2013}\cite{branco2017}. Some rely on cost-sensitive frameworks that penalize large errors on rare events\cite{steininger2021}.
+
+Despite the complexity of this issue, genuinely comprehensive approaches remain quite scarce, with far fewer methodologies developed for imbalanced regression than have been explored for imbalanced classification.
+
+ In this article, we address the problem of imbalanced regression. Our contributions are as follows:
+\begin{itemize}
+    \item We introduce BIKO, a bin-wise isolated kernel oversampling method for imbalanced regression that automatically segments the target space based on the estimated distribution rather than relying on arbitrary thresholds. Specifically, BIKO employs the percentile point function (PPF) of the fitted distribution to determine bin boundaries, ensuring a data-driven approach that adapts to the underlying structure of the target space. This method allows for more precise segmentation of the target values, which in turn helps address imbalance by allocating additional sampling effort where it is most needed.
+    \item Localized Distribution Modeling: BIKO learns localized joint distributions of features (X) and the target (y) via Kernel Density Estimation, isolating each bin and selectively oversampling both (X) and (y) via localized Kernel Density Estimation exactly where it is most needed. This strategy ensures that scarce or underrepresented regions receive additional sampling, allowing the model to capture nuanced relationships in the data. Consequently, it preserves fine-grained structure and improves both extreme-value prediction and overall performance. Furthermore, by focusing on localized densities, BIKO can adapt to heterogeneity in the data without losing crucial distribution details, ultimately resulting in more robust predictive modeling.
+    \item {Extensive Comparisons,} We compare BIKO against state-of-the-art methods (e.g., SMOGN, Geometric SMOTE, DenseLoss) on multiple datasets, demonstrating significant gains in handling underrepresented regions while boosting global accuracy. 
+
+
+\end{itemize}
+
+This article has the following sections. Section~\ref{sec:problem} defines the imbalanced 
+regression problem, Section~\ref{sec:related} reviews related work, and 
+Section~\ref{sec:conclusions} presents the conclusions.
+
+
+% ------------------------
+%     PROBLEM DEFINTION
+% ------------------------
+\section{Problem definition}
+\label{sec:problem}
+
+
+
+
+
+
+
+% ------------------------
+%     RELATED WORK
+% ------------------------
+\section{Related Work}
+\label{sec:related}
+
+Early solutions for imbalanced data focused on data-level methods, especially in classification. These techniques rebalance the class distribution by generating new minority instances or removing majority instances\cite{chawla2002}\cite{he2008}. For example, SMOTE introduced synthetic minority examples by interpolating between neighbors\cite{chawla2002}, and it inspired many variants such as Borderline-SMOTE, which focuses on difficult boundary samples\cite{han2005}, and density-based methods like DBSMOTE\cite{bunkhumpornpat2012}.
+
+Oversampling methods remain popular nearly one-third of imbalanced classification papers use data-level strategies\cite{haixiang2017} but most were designed for discrete classes. In regression, adapting these ideas is less straightforward due to a continuous target space\cite{Krawczyk2016}\cite{he2013}. The first imbalanced regression methods extended classification resampling by defining a relevance function to identify “rare” vs. “common” target regions\cite{torgo2007}.
+
+% ------------------------
+%         METHOD
+% ------------------------
+\section{Method}
+
+
+
+% ------------------------
+%  EXPERIMENTAL RESULTS
+% ------------------------
+\section{Experimental Results}
+
+
+
+% ------------------------
+% IMPLEMENTATION DETAILS
+% ------------------------
+\section{Implementation Details and Discussion}
+
+
+
+% ------------------------
+%     REFERENCES
+% ------------------------
+\begin{thebibliography}{99}
+
+% Reordered according to appearance in text (numeric labels).
+% ----------------------------------------------------------
+
+%1
+\bibitem{he2009}
+H.~He and E.~A.~Garcia, “Learning from imbalanced data,” \emph{IEEE Transactions on Knowledge and Data Engineering}, vol.~21, no.~9, pp. 1263--1284, 2009.
+%2
+\bibitem{Haixiang2017} H.~Guo, Y.~Li, J.~Shang, M.~Gu, Y.~Huang, and B.~Gong, “Learning from class-imbalanced data: Review of methods and applications,” \emph{Expert Systems with Applications}, vol.~73, pp. 220--239, 2017.
+%3
+\bibitem{chawla2002}
+N.~V. Chawla, K.~W. Bowyer, L.~O. Hall, and W.~P. Kegelmeyer,
+“SMOTE: Synthetic minority over-sampling technique,”
+\emph{Journal of Artificial Intelligence Research}, vol.~16, pp. 321--357, 2002.
+%4
+\bibitem{buda2018}
+M.~Buda, A.~Maki, and M.~A.~Mazurowski, “A systematic study of the class imbalance problem in convolutional neural networks,” 
+\emph{Neural Networks}, vol.~106, pp. 249--259, 2018.
+%5
+\bibitem{johnson2019}
+J.~M.~Johnson and T.~M.~Khoshgoftaar, “Survey on deep learning with class imbalance,”
+\emph{Journal of Big Data}, vol.~6, no.~1, pp. 1--54, 2019.
+
+%6
+\bibitem{liu2009}
+X.-Y.~Liu, J.~Wu, and Z.-H.~Zhou, “Exploratory undersampling for class-imbalance learning,”
+\emph{IEEE Transactions on Systems, Man, and Cybernetics, Part B (Cybernetics)}, vol.~39, no.~2, pp. 539--550, 2009.
+
+%7
+\bibitem{krawczyk2016}
+B.~Krawczyk, “Learning from imbalanced data: open challenges and future directions,”
+\emph{Progress in Artificial Intelligence}, vol.~5, no.~4, pp. 221--232, 2016.
+
+%8
+\bibitem{branco2016}
+P.~Branco, L.~Torgo, and R.~P.~Ribeiro, “A survey of predictive modeling under imbalanced distributions,”
+\emph{ACM Computing Surveys}, vol.~49, no.~2, Article 31, 2016.
+
+%9
+\bibitem{torgo2013}
+L.~Torgo, R.~P. Ribeiro, J.~P. da Costa, and S.~Pal,
+“SMOTE for regression,” in
+\emph{Intelligent Data Engineering and Automated Learning (IDEAL 2013). Lecture Notes in Computer Science}, vol.~8206, 2013, pp. 378--387.
+
+%10
+\bibitem{chawla2004}
+N.~V.~Chawla, N.~Japkowicz, and A.~Kolcz, “Editorial: Special issue on learning from imbalanced data sets,”
+\emph{ACM SIGKDD Explorations Newsletter}, vol.~6, no.~1, pp. 1--6, 2004.
+
+%11
+\bibitem{kaur24}
+A.~Kaur and M.~Sarmadi, “Comparative analysis of machine learning techniques
+for imbalanced genetic data,” \emph{Annals of Data Science}, 2024.
+
+%12
+\bibitem{scheepens23}
+D.~Scheepens, I.~Schicker, K.~Hlaváčková-Schindler, and C.~Plant,
+“Adapting a deep convolutional RNN model with imbalanced regression loss
+for improved spatio-temporal forecasting of extreme wind speed events 
+in the short to medium range,” \emph{Geosci. Model Dev.}, 2023.
+
+%13
+\bibitem{xu2022}
+Z.~Xu, C.~Zhao, C.~D.~Scales~Jr, R.~Henao, and B.~A.~Goldstein,
+“Predicting in-hospital length of stay: a two-stage modeling approach to account for highly skewed data,” 
+\emph{BMC Medical Informatics and Decision Making}, vol.~22, article~110, 2022.
+
+%14
+\bibitem{branco2017}
+P.~Branco, L.~Torgo, and R.~P. Ribeiro,
+“SMOGN: A pre-processing approach for imbalanced regression,” in
+\emph{Proceedings of Machine Learning Research: LIDTA}, vol.~74, 2017, pp. 36--50.
+
+%15
+\bibitem{steininger2021}
+M.~Steininger, K.~Kobs, P.~Davidson, A.~Krause, and A.~Hotho, 
+“Density-based weighting for imbalanced regression,”
+\emph{Machine Learning}, vol. 110, no. 8, pp. 2187--2210, 2021.
+
+%16
+\bibitem{he2008}
+H.~He, Y.~Bai, E.~A. Garcia, and S.~Li, “ADASYN: Adaptive synthetic sampling approach for imbalanced learning,” in
+\emph{Proceedings of the International Joint Conference on Neural Networks}, 2008, pp. 1322--1328.
+
+%17
+\bibitem{han2005}
+H.~Han, W.-Y.~Wang, and B.-H.~Mao, “Borderline-SMOTE: A new over-sampling method in imbalanced data sets learning,” in
+\emph{Proceedings of ICIC 2005}, 2005, pp. 878--887, Springer.
+
+%18
+\bibitem{bunkhumpornpat2012}
+C.~Bunkhumpornpat, K.~Sinapiromsaran, and C.~Lursinsap, “DBSMOTE: Density-based synthetic minority over-sampling technique,” \emph{Applied Intelligence}, vol.~36, no.~3, pp.~664--684, 2012.
+
+%19
+\bibitem{haixiang2017}
+H.~Guo, Y.~Li, J.~Shang, M.~Gu, Y.~Huang, and B.~Gong, “Learning from class-imbalanced data: Review of methods and applications,” \emph{Expert Systems with Applications}, vol.~73, pp.~220--239, 2017.
+
+
+%20
+\bibitem{he2013}
+H.~He and Y.~Ma,
+\emph{Imbalanced learning: Foundations, algorithms, and applications}.
+John Wiley \& Sons, 2013.
+
+%21
+\bibitem{torgo2007}
+L.~Torgo and R.~P.~Ribeiro, “Utility-based regression,” in
+\emph{Proceedings of PKDD 2007}, 2007, pp.~597--604, Springer.
+
+
+\bibitem{lopez2013}
+V.~L\'opez, A.~Fern\'andez, S.~Garc\'ia, V.~Palade, and F.~Herrera, “An insight into classification with imbalanced data: Empirical results and current trends on using data intrinsic characteristics,” \emph{Information Sciences}, vol. 250, pp. 113--141, 2013.
+
+
+
+\bibitem{han2005}
+H.~Han, W.~Y. Wang, and B.~H. Mao, “Borderline-SMOTE: A new over-sampling method in imbalanced data sets,” in
+\emph{Advances in Intelligent Computing (ICIC 2005). Lecture Notes in Computer Science}, vol. 3644, 2005, pp. 878--887.
+
+
+
+\bibitem{lin2017}
+T.-Y. Lin, P.~Goyal, R.~Girshick, K.~He, and P.~Doll{\'a}r, “Focal loss for dense object detection,” in
+\emph{Proceedings of the IEEE International Conference on Computer Vision (ICCV)}, 2017, pp. 2980--2988.
+
+\bibitem{cui2019}
+Y.~Cui, M.~Jia, T.~Y. Lin, S.~Belongie, and P.~Felzenszwalb,
+“Class-balanced loss based on effective number of samples,”
+in \emph{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition}, 2019, pp. 9268--9277.
+
+
+
+
+
+
+
+\bibitem{agrawal2021}
+B.~Agrawal and T.~Petersen,
+“Predicting extreme precipitation events with imbalanced data: A comparative analysis of machine learning methods,”
+\emph{Meteorological Applications}, vol.~28, no.~3, 2021.
+
+\bibitem{branco2019}
+P.~Branco, L.~Torgo, and R.~P. Ribeiro,
+“Resampling strategies for imbalanced regression,”
+\emph{Expert Systems}, vol.~36, no.~3, e12389, 2019.
+
+\bibitem{camacho2022}
+L.~Camacho, G.~Douzas, and F.~Bacao,
+“Geometric SMOTE for regression,”
+\emph{Expert Systems with Applications}, vol. 193, 116387, 2022.
+
+\bibitem{yang2021}
+Y.~Yang, K.~Zha, Y.-C. Chen, H.~Wang, and D.~Katabi,
+“Delving into deep imbalanced regression,”
+in \emph{Proceedings of the 38th International Conference on Machine Learning}, 2021, pp. 11881--11892.
+
+\bibitem{gong2022}
+Y.~Gong, G.~Mori, and F.~Tung,
+“RankSim: Ranking similarity regularization for deep imbalanced regression,”
+in \emph{Proceedings of the 39th International Conference on Machine Learning}, 2022, pp. 7670--7688.
+
+
+
+\bibitem{camacho2023}
+L.~Camacho and F.~Bacao, 
+“WSMOTER: A novel approach for imbalanced regression,”
+\emph{Applied Intelligence}, vol.~54, pp. 8789--8799, 2023.
+
+\bibitem{bal2018}
+M.~Bal and R.~Kumar,
+“On the use of synthetic data for imbalanced software defect prediction,”
+\emph{Journal of Systems and Software}, vol. 143, pp. 32--48, 2018.
+
+\bibitem{moniz2019}
+N.~Moniz and L.~Torgo,
+“Multi-source social feedback of online news feeds,”
+\emph{Neurocomputing}, vol. 326, pp. 45--57, 2019.
+
+\bibitem{snieder2020}
+R.~Snieder, N.~Tsumura, B.~Zhang, P.~Li, and T.~Qin,
+“Imbalanced learning for flood forecasting: Improving flood alert systems with minority event data,”
+\emph{Water Resources Research}, vol.~56, no.~8, e2019WR026789, 2020.
+
+
+\bibitem{ribeiro2020a}
+R.~P. Ribeiro and N.~Moniz,
+“Imbalanced regression and extreme value prediction,”
+\emph{Machine Learning}, vol. 109, no. 9--10, pp. 1803--1835, 2020.
+
+\bibitem{akiba2019}
+T.~Akiba, S.~Sano, T.~Yanase, T.~Ohta, and M.~Koyama,
+“Optuna: A next-generation hyperparameter optimization framework,”
+in \emph{Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery \& Data Mining}, 2019, pp. 2623--2631.
+
+\bibitem{silverman1986}
+B.~W. Silverman,
+\emph{Density Estimation for Statistics and Data Analysis}.
+Chapman and Hall/CRC, 1986.
+
+\bibitem{he2013additional}
+H.~He, “Further discussion on classification of highly imbalanced data,” \emph{IEEE Transactions on Knowledge and Data Engineering}, vol.~25, no.~10, 2013.
+
+\bibitem{torgo2009}
+L.~Torgo and R.~P. Ribeiro,
+“Precision and recall for regression,”
+in \emph{Workshop on Evaluation Methods for Machine Learning (ICML)}, 2009, pp. 1--7.
+
+\end{thebibliography}
+
+\end{document}
