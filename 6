@@ -48,7 +48,7 @@
 %      ABSTRACT
 % ------------------------
 \begin{abstract}
-Learning from imbalanced data is a major challenge in machine learning, especially for neural networks which tend to perform poorly under such conditions. Imbalanced regression refers to scenarios where the continuous target variable has a highly uneven distribution, leading to skewed data and difficulties analogous to imbalanced classification. While class imbalance has been widely studied, the regression counterpart remains relatively underexplored, and only a few methods have been proposed. Existing oversampling approaches often rely on arbitrary thresholding that binarizes the target range (e.g. splitting into “rare” vs. “normal” values) without regard for the true continuous distribution. This can yield synthetic samples that distort the underlying data distribution, as subtle differences in target values get lumped into broad classes. To address this gap, we propose WMDO(Mixture-Distribution Oversampling), a novel method for imbalanced regression that accounts for both the global target distribution and the conditional distributions within underrepresented regions. Unlike methods focused solely on low-density regions, our approach considers all conditional distributions, including high-density areas, thereby improving performance on both common and rare outcomes. It treats each low-density region of the target space as a separate component and generates synthetic examples from the distribution of the target restricted to that region (i.e. the target’s conditional distribution in that range) without altering the data in other ranges. By oversampling each underrepresented range in isolation, without perturbing the well-represented regions, this method improves overall predictive performance as well as accuracy on rare outcomes. Extensive experiments on 43 datasets (spanning low-dimensional to high-dimensional feature spaces) demonstrate that our method outperforms state-of-the-art oversampling techniques, including SMOGN, DenseLoss, and G-SMOTE. The code and data are available at:
+Learning from imbalanced data is a major challenge in machine learning, especially for neural networks, which tend to perform poorly under such conditions. Imbalanced regression describes situations where the continuous target variable is distributed unevenly, resulting in sparse target regions and challenges comparable to those in imbalanced classification. Although class imbalance has been widely studied, the same problem in regression remains relatively underexplored and only a limited number of methods have been introduced. Existing resampling approaches often rely on arbitrary thresholding that splits the target range into rare vs normal categories, disregarding the underlying continuous distribution. This can yield synthetic samples that fail to mirror the actual continuous nature of the target, combining values that differ in behavior or importance and thereby impairing accurate regression. Additionally, other methods attempt to rebalance by undersampling the majority regions, which may improve balance at first glance but ultimately discards potentially valuable observations. This reduction in training data can degrade the model’s ability to learn nuanced patterns and, in turn, weakens overall predictive performance. Despite these efforts, there remains a gap in the literature for a method that effectively addresses the entire target distribution, improving both common outcomes and extreme tails while preserving important data. To address this gap, we propose WMDO (Mixture-Distribution Oversampling), a novel method for imbalanced regression that decomposes the target space into local sub-distributions, each preserving its distinct statistical characteristics, while maintaining consistency with the overall distribution, and rebalances each segment by modeling and oversampling from its local density. Unlike methods that only concentrate on sparse, tail regions, our approach addresses the entire target distribution, covering both high-density and low-density segments. This broader coverage improves performance on common values and rare extremes alike, whereas focusing solely on minority segments can undermine predictive accuracy for the rest of the target range. By oversampling each segment of the target space in isolation, our method preserves each segment’s unique features and generates synthetic data that genuinely reflects that segment’s distribution. As a result, the entire target space is more accurately represented, leading to better overall performance and improved predictions for rarely observed outcomes. Comprehensive evaluations on 43 datasets, including both low-dimensional and high-dimensional feature spaces, show that our method outperforms state-of-the-art oversampling approaches such as SMOGN, DenseLoss, and G-SMOTE. The code and data are available at:
 \href{https://github.com/ShayanAlahyari/Distribution-Modeling-and-Ratio-Oversampling-for-Imbalanced-Regression}{https://github.com/ShayanAlahyari/BIKO}.
 \end{abstract}
 
@@ -79,8 +79,7 @@ Learning from imbalanced data is a major challenge in machine learning, especial
         \caption{Histogram of the target values from the boston dataset.}
         \label{fig:sparse_region}
     \end{subfigure}
-    \caption{(a) Classification scenario with an explicitly labeled minority class, making it straightforward to identify.
-    (b) Continuous‐target scenario where “rare” outcomes lie at the distribution’s sparse tail, creating subtler challenges than discrete labels.}
+    \caption{On the left is a classification example with a clearly labeled minority class that is easy to identify. On the right is an imbalanced regression example, where some target values appear in sparse regions throughout the distribution, making them harder to detect and handle.}
     \label{fig:two_figures_side_by_side}
 \end{figure}
 
@@ -211,11 +210,10 @@ By analyzing and rebalancing each mixture component separately, WMDO ensures acc
     \centering
     \includegraphics[width=\textwidth,
     % height=0.4\textheight,
-    ]{Your paragraph text (7).png}
+    ]{Your paragraph text (10).png}
     \caption{WMDO oversamples each conditional distribution of the target  independently, resulting in a balanced final distribution.}
     \label{fig:method_large_image}
 \end{figure}
-
 
 \noindent
 \textbf{5.2 Estimating the Target Distribution}
@@ -530,6 +528,17 @@ Both approaches can be valid, and often the choice depends on domain context or 
 
 \noindent
 Overall, Freedman-Diaconis provides a well‐established, principled way to determine interval widths, requiring no additional hyperparameters. On the other hand, the minimum‐sample‐count method offers direct control over how many data points end up in each interval, making it simpler to guarantee robust local density estimates in extremely imbalanced or heavy‐tailed datasets.
+
+
+\begin{figure}[!t]
+    \vspace{-1cm}   % Adjust to suit
+    \centering
+    \includegraphics[width=\textwidth,
+    % height=0.4\textheight,
+    ]{pic12.png}
+    \caption{WMDO decomposes the global target distribution into multiple sub-distributions (Sections XXX and YYY). Each sub-distribution is then modeled with its own KDE, from which samples are independently drawn.}
+    \label{fig:method_large_image}
+\end{figure}
 
 
 \subsection{Joint Kernel Density Estimation for Conditional Oversampling}
