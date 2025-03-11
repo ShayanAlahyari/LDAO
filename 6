@@ -33,7 +33,7 @@
 
 \begin{document}
 
-\title{Weighted mixture distribution Oversampling for imbalanced regression}
+\title{K2-GAN: data augmentation for imbalanced regression through Kernel density estimation \& Wasserstein Generative Adversarial Network}
 \author{
     \textbf{xxx, xxx}
     \thanks{Manuscript received Month XX, 20XX.}
@@ -47,16 +47,20 @@
 % ------------------------
 %      ABSTRACT
 % ------------------------
+
+%  Learning from imbalanced data is a major challenge in machine learning, especially for neural networks, which tend to perform poorly under such conditions. Imbalanced regression describes situations where the continuous target variable is distributed unevenly, resulting in sparse target regions and challenges comparable to those in imbalanced classification. Although class imbalance has been widely studied, the same problem in regression remains relatively underexplored and has only a limited number of proposed methods. Existing resampling approaches often rely on arbitrary thresholds that split the target range into rare and normal categories, disregarding the underlying continuous distribution. This can produce synthetic samples that do not capture the continuous nature of the target, ultimately degrading performance of the model. Additionally, some methods rely on undersampling the majority regions, potentially discarding valuable observations. To address these challenges, we propose K2-GAN, a new two-phase data-level oversampling method for imbalanced regression. K2-GAN begins by using K-means to cluster the data into multiple local distribution components, each preserving its distinct statistical characteristics. Next, each cluster undergoes a two-phase oversampling procedure. In the first phase, a cluster-specific kernel density estimation oversamples the data. In the second phase, an unconditional Wasserstein generative adversarial network draws on knowledge transfer from the first phase to generate additional samples that better reflect the local distribution. Throughout both phases, each component is treated independently, modeling and sampling from its own local density without affecting the other clusters. Finally, these augmented clusters are merged into a single training set. In comprehensive evaluations across 51 imbalanced datasets, encompassing both low- and high-dimensional feature spaces, we find that our method outperforms state-of-the-art oversampling approaches. The code and data are available at:
+% \href{https://github.com/ShayanAlahyari/Distribution-Modeling-and-Ratio-Oversampling-for-Imbalanced-Regression}{https://github.com/ShayanAlahyari/LDO}.
+
+
 \begin{abstract}
-Learning from imbalanced data is a major challenge in machine learning, especially for neural networks, which tend to perform poorly under such conditions. Imbalanced regression describes situations where the continuous target variable is distributed unevenly, resulting in sparse target regions and challenges comparable to those in imbalanced classification. Although class imbalance has been widely studied, the same problem in regression remains relatively underexplored and only a limited number of methods have been introduced. Existing resampling approaches often rely on arbitrary thresholding that splits the target range into rare vs normal categories, disregarding the underlying continuous distribution. This can yield synthetic samples that fail to mirror the actual continuous nature of the target, combining values that differ in behavior or importance and thereby impairing accurate regression. Additionally, other methods attempt to rebalance by undersampling the majority regions, which may improve balance at first glance but ultimately discards potentially valuable observations. This reduction in training data can degrade the model’s ability to learn nuanced patterns and, in turn, weakens overall predictive performance. Despite these efforts, there remains a gap in the literature for a method that effectively addresses the entire target distribution, improving both common outcomes and extreme tails while preserving important data. To address this gap, we propose WMDO (Mixture-Distribution Oversampling), a novel method for imbalanced regression that decomposes the target space into local sub-distributions, each preserving its distinct statistical characteristics, while maintaining consistency with the overall distribution, and rebalances each segment by modeling and oversampling from its local density. Unlike methods that only concentrate on sparse, tail regions, our approach addresses the entire target distribution, covering both high-density and low-density segments. This broader coverage improves performance on common values and rare extremes alike, whereas focusing solely on minority segments can undermine predictive accuracy for the rest of the target range. By oversampling each segment of the target space in isolation, our method preserves each segment’s unique features and generates synthetic data that genuinely reflects that segment’s distribution. As a result, the entire target space is more accurately represented, leading to better overall performance and improved predictions for rarely observed outcomes. Comprehensive evaluations on 43 datasets, including both low-dimensional and high-dimensional feature spaces, show that our method outperforms state-of-the-art oversampling approaches such as SMOGN, DenseLoss, and G-SMOTE. The code and data are available at:
-\href{https://github.com/ShayanAlahyari/Distribution-Modeling-and-Ratio-Oversampling-for-Imbalanced-Regression}{https://github.com/ShayanAlahyari/BIKO}.
+Learning with imbalanced data is a machine learning problem that is particularly problematic for neural networks, which naturally suffer in those situations. Imbalanced regression occurs when the continuous target variable has an uneven distribution, resulting in sparse target regions and problems similar to those faced in imbalanced classification. Class imbalance has been thoroughly investigated; however, the imbalance problem in regression is relatively unexplored territory, with few solutions having been proposed so far. Existing resampling-based solutions often rely on arbitrary thresholds to identify samples as frequent or rare, but these thresholds may not truly reflect a sample's rarity or frequency, as they ignore the continuous nature of the target distribution. They may therefore produce synthetic samples that rely on the arbitrary threshold assumption and fail to enhance the model’s understanding of the data in reality, ultimately leading to reduced performance. Furthermore, some methods utilize undersampling within the majority regions, potentially removing valuable information. To address these shortcomings, we propose K2-GAN, a novel two-stage data-level oversampling technique for imbalanced regression. K2-GAN does not classify samples as frequent or rare. Instead, it learns the structure of the global distribution by decomposing it into local distributions, treating each distribution independently, and augmenting them based on their specific needs rather than labeling individual samples. K2-GAN first uses k-means to decompose the dataset into multiple local distribution clusters, each preserving its individual statistical characteristics. In the first stage a cluster-specific kernel density estimation learns the joint distribution of (X,y) and draws new samples accordingly. In the second stage, an unconditional Wasserstein generative adversarial network leverages knowledge from the kernel density estimation to create additional samples that better grasp the local distribution. Each cluster is handled independently in both stages, modeling and sampling from its own density without affecting the other clusters. The oversampled clusters are then merged to form a single augmented training set. In extensive evaluations on 51 imbalanced datasets, covering both low- and high-dimensional feature spaces, we show that our method consistently surpasses state-of-the-art oversampling techniques on both frequent and rare samples.
 \end{abstract}
 
 % ------------------------
 %    INDEX TERMS
 % ------------------------
 \begin{flushleft}
-\textbf{Index Terms}—Imbalanced regression, SMOTE, oversampling, ratio-driven sample generation, extreme value prediction, kernel-based sampling.
+\textbf{Keywords} Imbalanced, regression, Kernel density estimation, Generative Adversarial Network (GAN), Oversampling, Data-level, Supervised learning, local distribution.
 \end{flushleft}
 
 % ------------------------
@@ -83,46 +87,31 @@ Learning from imbalanced data is a major challenge in machine learning, especial
     \label{fig:two_figures_side_by_side}
 \end{figure}
 
-In classification tasks, imbalance occurs when certain classes have significantly fewer samples
-compared to others, which can happen in both binary and multi-class settings
-\cite{he2009}\cite{haixiang2017}. In these situations, the minority classes become overshadowed
-by the majority classes, leading traditional classifiers to focus on the more prevalent classes
-\cite{chawla2002}. This imbalance results in inaccurate detection of minority classes, as models
-struggle to capture patterns within these sparsely sampled regions \cite{buda2018}.
-Consequently, critical applications such as fraud detection, medical diagnostics, or fault
-detection are especially affected, since small but important classes may be overlooked
-\cite{johnson2019}. Accurate handling of imbalanced data is therefore essential for reliable
-performance across all classes, ensuring that rare but significant instances receive proper
-attention \cite{liu2009}.
+In classification tasks, imbalance refers to a situation where certain classes have far fewer samples than others. This can occur in both binary classification (tasks involving two classes) and multi-class classification (tasks involving more than two classes)
+\cite{he2009}\cite{haixiang2017}. In these cases, the classes with fewer samples, often called minority classes, are overshadowed by the majority classes, which have many more samples. Consequently, traditional classifiers tend to focus on the majority classes and perform poorly when identifying the minority classes
+\cite{chawla2002}. This imbalance often leads to inaccurate detection of minority classes, because models find it difficult to recognize patterns in the sparsely sampled parts of the data (areas with relatively few training examples)\cite{buda2018}. Consequently, critical applications such as fraud detection (identifying illegal financial transactions), medical diagnostics (discovering diseases or health conditions), and fault detection (identifying system or equipment failures) are especially affected, because small yet important classes can be easily missed\cite{johnson2019}. Accurate handling of imbalanced data is therefore essential for reliable
+performance across all classes, ensuring that rare but significant examples are not overlooked\cite{liu2009}.
 
-While imbalance is commonly discussed in classification tasks \cite{he2009}, it also
-occurs in regression tasks where the goal is to predict continuous numeric values
-\cite{krawczyk2016}. Imbalanced regression specifically refers to situations where certain
-ranges of target values — usually rare or extreme cases — have significantly fewer samples
-than others \cite{branco2016,torgo2013}. In these scenarios, traditional regression models
-often fail to accurately predict these rare target values because they are biased toward
-more frequent, densely sampled regions \cite{chawla2004,branco2016}. This makes accurate
-prediction in minority or scarce regions especially challenging, yet critically important
-in many real-world applications \cite{torgo2013}. Figure~\ref{fig:two_figures_side_by_side} compares imbalanced classification with imbalanced regression. In subfigure~\ref{fig:imbalanced_classification}, identifying a minority class is straightforward because each label is discrete; one can simply count how many samples fall under each label. In subfigure~\ref{fig:sparse_region}, however, a minority region appears within the continuous target distribution itself, where some outcomes are found in sparsely populated tails. Unlike classification, where imbalance is tied to distinct labels, regression imbalance is defined by the distribution’s shape (which can be skewed or multi-modal). Consequently, standard approaches from classification do not readily extend to regression, as there is no simple way to “count labels” to isolate underrepresented target values. This makes accurately detecting and mitigating sparse ranges a key challenge in imbalanced regression.
+While imbalance is often examined in classification tasks\cite{he2009}, it can also arise in regression tasks, which aim to predict continuous numeric values\cite{krawczyk2016}. Imbalanced regression refers to situations where certain ranges of target values (often rare or extreme cases) have significantly fewer samples compared to other ranges\cite{branco2016,torgo2013}. In such cases, traditional regression models often fail to accurately predict these uncommon (rare) target values because they tend to focus on the more frequently observed, well-represented ranges\cite{chawla2004,branco2016}. In these situations, it is especially challenging to accurately predict the less frequent target ranges. However, achieving this is crucial for many real-world applications\cite{torgo2013}. Figure~\ref{fig:two_figures_side_by_side} compares imbalanced classification with imbalanced regression. In subfigure~\ref{fig:imbalanced_classification}, identifying a minority class is straightforward because each label is discrete. One can simply count how many samples belong to each class. In subfigure~\ref{fig:sparse_region}, however, a minority region arises within the continuous target distribution, where some outcomes appear in sparsely populated tails. Unlike classification, where imbalance is associated with distinct labels, imbalance in regression is determined by the shape of the distribution (which can be skewed or multi-modal). As a result, methods from classification are not directly applicable to regression, since there is no straightforward way to count labels to identify underrepresented target values. This makes accurately detecting and addressing sparse regions a significant challenge in imbalanced regression.
 
  
 
 
-Many real-world applications are struggling with imbalanced data. In genomic prediction, continuous trait values such as pathogenicity scores are frequently skew toward certain levels, leaving extreme, deleterious variants in sparsely populated tails. Standard regression models often struggle with these infrequent but clinically critical extremes\cite{kaur24}. In spatio-temporal forecasting of extreme wind events, most observations lie around moderate wind speeds, while very high speed wind events, crucial for hazard warnings, energy grid stability, and wind farm operations, occur only rarely. As a result, conventional regression models trained on the bulk of moderate data tend to underestimate or completely miss these high impact outliers, leading to compromised performance precisely when accurate forecasts are most essential\cite{scheepens23}. In healthcare, hospital length‐of‐stay data often skews heavily. Most patients are discharged quickly, but a smaller subset remains hospitalized much longer. If models only learn from short‐stay cases, they fail to capture the extended‐stay minority leading to underestimates of these resource‐intensive admissions. Accurate modeling of rare, longer stays is crucial for managing bed capacity and staff scheduling, particularly under high‐stress conditions such as a pandemic\cite{xu2022}.
+Many real-world applications face challenges caused by imbalanced data. In genomic prediction (using genetic information to forecast trait values), continuous trait measures such as pathogenicity scores (indicators of how likely a genetic variant is to cause disease) often lean toward certain levels. As a result, extreme and potentially harmful variants lie in sparsely populated tails of the distribution. Standard regression models commonly have difficulty predicting these infrequent but clinically critical extremes\cite{kaur24}. In spatio-temporal forecasting (predicting values across space and time) of extreme wind events, most measurements cluster around moderate wind speeds, while very high speed wind events, which are crucial for hazard warnings, energy grid stability, and wind farm operations, occur infrequently. As a result, conventional regression models that rely on the majority of moderate data frequently underestimate or overlook these high-impact outliers, leading to compromised performance precisely in situations where accurate forecasts are most crucial\cite{scheepens23}. In healthcare, hospital length-of-stay data are often heavily skewed. Most patients are discharged quickly, but a smaller subset remains hospitalized much longer. If models learn only from short-stay cases, they fail to include these extended-stay cases, resulting in underestimates of resource-intensive admissions. Capturing rare, longer stays accurately is critical for managing bed capacity and staff scheduling, especially under high-stress conditions like a pandemic\cite{xu2022}. These challenges extend beyond the examples above. Imbalanced data and rare extreme outcomes also arise in many other fields, including economics, finance, engineering, and additional real-world domains, where accurately capturing and predicting infrequent yet high-impact events is equally critical to informed decision-making.
 
+In response, specialized approaches have been developed. For example, some methods adapt SMOTE (Synthetic Minority Oversampling Technique), originally designed for imbalanced classification, to create synthetic samples at the tail ends of the target distribution\cite{torgo2013}\cite{branco2017}. Others use cost-sensitive frameworks, which assign higher penalties for large errors on rare events.\cite{steininger2021}.
+%%% first modification done
 
-In response, specialized techniques have emerged. Some adapt SMOTE by creating synthetic instances in the tail ends of the target distribution\cite{torgo2013}\cite{branco2017}. Some rely on cost-sensitive frameworks that penalize large errors on rare events\cite{steininger2021}.
-
-Despite the complexity of this issue, genuinely comprehensive approaches remain quite scarce, with far fewer methodologies developed for imbalanced regression than have been explored for imbalanced classification.
-
- In this article, we address the problem of imbalanced regression. Our contributions are as follows:
-\begin{itemize}
-    \item We introduce Mixture-Distribution Oversampling (WMDO), a new approach designed explicitly for imbalanced regression.
-    \item WMDO accounts for all conditional distributions across the entire continuous target space, not only underrepresented regions, by independently generating synthetic examples that preserve the overall distribution while still focusing on tail or sparse segments.
+Despite the importance and complexity of this issue, imbalanced regression solutions remain scarce, with far fewer methods developed for this area than for imbalanced classification. In this paper, we propose a data-level oversampling approach for imbalanced regression called LDO(Local distribution-based oversampling). Our approach is visualized in Figure~\ref{fig:method_large_image}
 
 
 
-\end{itemize}
+In this article, we address the problem of imbalanced regression. We propose LDO(Local distribution-based oversampling). Its main contribution is the presentation of a method that partition the global target distribution into local distributions using statistical tools and generates artificial data by using kernel density estimations which sample both the feature and target values independently for each local distribution
+
+
+
+
+
 
 This article has the following sections. Section~\ref{sec:problem} defines the imbalanced 
 regression problem, Section~\ref{sec:related} reviews related work, and 
@@ -185,7 +174,7 @@ Despite the progress made by the above techniques, several gaps remain in addres
 
 Many real-world applications in healthcare, genomics, environmental science, finance, and engineering involve regression tasks on highly imbalanced datasets. Existing data-level solutions for such tasks are limited, and the few that do exist frequently produce synthetic examples that fail to preserve the true underlying data distribution. Simply undersampling well-represented regions and oversampling sparse regions may improve predictions for rare targets but often degrades performance on more frequent targets. Moreover, complex or multimodal distributions cannot be adequately captured by threshold-based methods or simple interpolation.
 
-In contrast, the proposed WMDO approach focuses on preserving the nuanced structure of the data across all target ranges. Rather than discarding common samples or relying solely on interpolation in sparse regions, WMDO oversamples each segment of the target distribution by creating synthetic data that respects the conditional distribution of both rare and frequent values. By treating each range independently, without forcing a global threshold, we retain information from the dense parts of the distribution while properly augmenting the sparse ones. When these oversampled segments are recombined into the overall dataset, the result is a smooth, unified distribution that improves predictive performance for both common and extreme targets.
+In contrast, the proposed LDO approach focuses on preserving the nuanced structure of the data across all target ranges. Rather than discarding common samples or relying solely on interpolation in sparse regions, LDO oversamples each partition of the target distribution by creating synthetic data that respects the conditional distribution of both rare and frequent values. By treating each range independently, without forcing a global threshold, we retain information from the dense parts of the distribution while properly augmenting the sparse ones. When these oversampled partitions are recombined into the overall dataset, the result is a smooth, unified distribution that improves predictive performance for both common and extreme targets.
 
 \end{itemize}
 
@@ -199,10 +188,10 @@ In contrast, the proposed WMDO approach focuses on preserving the nuanced struct
 \label{sec:pmethod}
 
 
-We introduce Weighted Mixture Distribution Oversampling (WMDO), a novel method that views the target variable not as one monolithic distribution but rather as multiple mixture components, each covering a distinct range of values. Unlike existing oversampling methods such as SMOTER, SMOGN, and G-SMOTE, which rely on predefined relevance functions, thresholding rules, or heuristic rarity labeling to identify underrepresented target regions, WMDO automatically determines its segmentation based on the natural distribution of the data. SMOTER and SMOGN require manually setting a relevance function to classify rare and normal values, introducing dataset-specific tuning and making the results sensitive to threshold selection. Similarly, G-SMOTE applies geometric oversampling but still requires a pre-classification step to determine minority target ranges before generating synthetic points. In contrast, WMDO eliminates the need for any predefined rarity criteria. This approach ensures a fully adaptive and data-driven segmentation, effectively capturing both dense and sparse regions without relying on arbitrary user-defined thresholds or expert domain knowledge.
+We introduce Weighted Mixture Distribution Oversampling (LDO), a novel method that views the target variable not as one monolithic distribution but rather as multiple mixture components, each covering a distinct range of values. Unlike existing oversampling methods such as SMOTER, SMOGN, and G-SMOTE, which rely on predefined relevance functions, thresholding rules, or heuristic rarity labeling to identify underrepresented target regions, LDO automatically determines its partitionation based on the natural distribution of the data. SMOTER and SMOGN require manually setting a relevance function to classify rare and normal values, introducing dataset-specific tuning and making the results sensitive to threshold selection. Similarly, G-SMOTE applies geometric oversampling but still requires a pre-classification step to determine minority target ranges before generating synthetic points. In contrast, LDO eliminates the need for any predefined rarity criteria. This approach ensures a fully adaptive and data-driven partitionation, effectively capturing both dense and sparse regions without relying on arbitrary user-defined thresholds or expert domain knowledge.
 
 
-By analyzing and rebalancing each mixture component separately, WMDO ensures accurate modeling of both rare, extreme targets and more common, central ranges. This local focus prevents the distortions and arbitrary cutoffs seen in threshold-based methods, allowing the technique to capture subtle nuances within each sub-distribution. As a result, WMDO not only boosts predictions for rare outcomes (often critical in real-world applications) but also maintains strong performance for typical values. Taken together, these features produce a comprehensive, balanced solution that surpasses existing oversampling strategies for imbalanced regression.
+By analyzing and rebalancing each mixture component separately, LDO ensures accurate modeling of both rare, extreme targets and more common, central ranges. This local focus prevents the distortions and arbitrary cutoffs seen in threshold-based methods, allowing the technique to capture subtle nuances within each sub-distribution. As a result, LDO not only boosts predictions for rare outcomes (often critical in real-world applications) but also maintains strong performance for typical values. Taken together, these features produce a comprehensive, balanced solution that surpasses existing oversampling strategies for imbalanced regression.
 
 
 \begin{figure}[!t]
@@ -210,8 +199,8 @@ By analyzing and rebalancing each mixture component separately, WMDO ensures acc
     \centering
     \includegraphics[width=\textwidth,
     % height=0.4\textheight,
-    ]{Your paragraph text (10).png}
-    \caption{WMDO oversamples each conditional distribution of the target  independently, resulting in a balanced final distribution.}
+    ]{Your paragraph text (14).png}
+    \caption{LDO oversamples each conditional distribution of the target  independently, resulting in a balanced final distribution.}
     \label{fig:method_large_image}
 \end{figure}
 
@@ -230,7 +219,7 @@ Existing methods often rely on hard-coded thresholds or binning heuristics to id
 
 \begin{itemize}
   \item Flexibly captures the actual shape (skew, tails, or multiple modes), thus avoiding one-size-fits-all assumptions.
-  \item Provides a systematic basis for segmenting the continuous range into sub-distributions, letting the data guide where these segments should lie.
+  \item Provides a systematic basis for partitioning the continuous range into sub-distributions, letting the data guide where these partitions should lie.
   \item Preserves continuity of the target variable, reducing the risk of over- or under-weighting important sparse regions.
 \end{itemize}
 
@@ -329,7 +318,7 @@ Upon completion of this procedure, we have:
 \end{itemize}
 
 \noindent
-This fitted distribution then guides our intervals of the continuous target range into sub-distributions, naturally reflecting both common and sparse regions. As a result, the subsequent oversampling strategy can precisely oversample areas with few samples without distorting or discarding well-populated segments. By capturing the true underlying shape, we build a robust foundation for rebalancing the target space in an imbalanced regression setting.
+This fitted distribution then guides our intervals of the continuous target range into sub-distributions, naturally reflecting both common and sparse regions. As a result, the subsequent oversampling strategy can precisely oversample areas with few samples without distorting or discarding well-populated partitions. By capturing the true underlying shape, we build a robust foundation for rebalancing the target space in an imbalanced regression setting.
 
 % -------------------------------------
 % 5.3 Determining the Number of Intervals via Minimum Sample Count
@@ -338,7 +327,7 @@ This fitted distribution then guides our intervals of the continuous target rang
 \textbf{5.3 Determining the Number of Intervals via Minimum Sample Count}
 
 \noindent
-When segmenting the target space into subdistributions, a practical consideration is how many intervals to create. Too few intervals may group together distinctly different regions of the target distribution, while too many intervals may lead to extremely sparse subranges that cannot be effectively oversampled. In WMDO, one approach is to impose a minimum sample count per interval, ensuring each subrange of the target distribution receives enough coverage from real data before synthetic points are introduced.
+When partitioning the target space into subdistributions, a practical consideration is how many intervals to create. Too few intervals may group together distinctly different regions of the target distribution, while too many intervals may lead to extremely sparse subranges that cannot be effectively oversampled. In LDO, one approach is to impose a minimum sample count per interval, ensuring each subrange of the target distribution receives enough coverage from real data before synthetic points are introduced.
 
 \medskip
 \noindent
@@ -348,7 +337,7 @@ When segmenting the target space into subdistributions, a practical consideratio
 \textit{Avoid Excessive Sparsity:} An interval containing only a handful of points can yield unreliable estimates of local density. Imposing a minimum count ensures that each interval has sufficient “core” data.
 
 \noindent
-\textit{Adaptive to Varying Dataset Sizes:} Larger datasets naturally permit more intervals (more finely grained subranges), while smaller datasets require fewer intervals to keep each segment well populated.
+\textit{Adaptive to Varying Dataset Sizes:} Larger datasets naturally permit more intervals (more finely grained subranges), while smaller datasets require fewer intervals to keep each partition well populated.
 
 \noindent
 \textit{Simplicity and Interpretability:} Unlike methods that rely on intricate heuristics or domain‐dependent thresholds, the minimum‐sample‐count rule provides a straightforward, integer‐based criterion that is easy to tune across different tasks.
@@ -426,7 +415,7 @@ with few points, whereas high‐density regions become overcrowded.
 
 \medskip
 \noindent
-WMDO instead adopts a \emph{probability‐based} approach to defining sub‐distributions.
+LDO instead adopts a \emph{probability‐based} approach to defining sub‐distributions.
 Let \(F_{\ast}(y)\) be the cumulative distribution function (CDF) of the chosen 
 parametric model \(\mathcal{D}_{\ast}\) (Section~5.2), and 
 \(\mathrm{PPF}_{\ast}(q) = F_{\ast}^{-1}(q)\) its percentile point function.
@@ -449,7 +438,7 @@ the widths of these subranges adapt automatically to different densities or tail
     sparse or overloaded regions.
 
     \item \emph{Adaptation to Skew/Tails:} By dividing \emph{probability} space uniformly,
-    WMDO prevents extremely small subranges in heavy‐tailed areas and avoids unduly
+    LDO prevents extremely small subranges in heavy‐tailed areas and avoids unduly
     narrow bins in dense areas.
 
     \item \emph{Alignment with the Fitted Model:} Defining sub‐distributions via
@@ -458,7 +447,7 @@ the widths of these subranges adapt automatically to different densities or tail
 \end{itemize}
 
 \noindent
-Overall, this probability‐oriented segmentation works in tandem with the 
+Overall, this probability‐oriented partitionation works in tandem with the 
 minimum‐sample‐count rule (Section~5.3.2),
 providing both a target number of data points per subrange 
 \emph{and} adaptive boundaries that capture the natural structure 
@@ -475,7 +464,7 @@ of the underlying distribution.
 \textbf{5.4 Freedman-Diaconis Rule as an Alternative}
 
 \noindent
-While the minimum‐sample‐count method is straightforward and effective, other data‐driven rules can also determine interval widths or interval counts for segmenting the target distribution. One such notable option is the Freedman-Diaconis rule, which automatically calculates an optimal interval width based on the data’s interquartile range (IQR) and sample size.
+While the minimum‐sample‐count method is straightforward and effective, other data‐driven rules can also determine interval widths or interval counts for partitioning the target distribution. One such notable option is the Freedman-Diaconis rule, which automatically calculates an optimal interval width based on the data’s interquartile range (IQR) and sample size.
 
 \medskip
 \noindent
@@ -536,7 +525,7 @@ Overall, Freedman-Diaconis provides a well‐established, principled way to dete
     \includegraphics[width=\textwidth,
     % height=0.4\textheight,
     ]{pic12.png}
-    \caption{WMDO decomposes the global target distribution into multiple sub-distributions (Sections XXX and YYY). Each sub-distribution is then modeled with its own KDE, from which samples are independently drawn.}
+    \caption{LDO decomposes the global target distribution into multiple sub-distributions (Sections XXX and YYY). Each sub-distribution is then modeled with its own KDE, from which samples are independently drawn.}
     \label{fig:method_large_image}
 \end{figure}
 
@@ -655,7 +644,7 @@ the unbounded support of Gaussian kernels may occasionally produce out-of-range 
 To address this, we enforce a ``hard boundary'' by clipping any generated targets 
 that lie outside $[y_L, y_U]$. This ensures that no synthetic points 
 extend beyond the intended sub-distribution, thereby preserving strict local consistency 
-within each segment of the target space. 
+within each partition of the target space. 
 strict consistency.
 
 \paragraph{Complete Oversampling Procedure for Each Subrange.}
@@ -682,7 +671,7 @@ center. Likewise, correlated patterns between certain feature dimensions and $y$
 \emph{locally} captured by the kernel’s smoothing around real data. In contrast, a global model 
 that tries to learn $p(\mathbf{x}, y)$ for the entire range of $y$ might obscure minority 
 structures or annihilate subtle modes corresponding to rare targets. By zooming in on one slice 
-of the target range at a time, then combining these oversampled slices, WMDO obtains a more faithful 
+of the target range at a time, then combining these oversampled slices, LDO obtains a more faithful 
 overall representation of the full $(\mathbf{x}, y)$ distribution.
 
 \medskip
@@ -788,7 +777,7 @@ The unified oversampled set $\widetilde{\mathcal{S}}_{\text{full}}$ (Eq.~\ref{eq
 \end{enumerate}
 
 \noindent
-\textbf{Outcome.} By unifying these local, properly oversampled sub‐distributions, WMDO effectively merges them into a final oversampled dataset. This preserves each subrange’s unique feature–target relationships while addressing the global imbalance. The result is a single, coherent training set that leads to stronger performance across the entire target spectrum, avoiding the pitfalls of arbitrary thresholding or excessive interpolation in standard oversampling methods.
+\textbf{Outcome.} By unifying these local, properly oversampled sub‐distributions, LDO effectively merges them into a final oversampled dataset. This preserves each subrange’s unique feature–target relationships while addressing the global imbalance. The result is a single, coherent training set that leads to stronger performance across the entire target spectrum, avoiding the pitfalls of arbitrary thresholding or excessive interpolation in standard oversampling methods.
 
 
 
@@ -802,7 +791,7 @@ The unified oversampled set $\widetilde{\mathcal{S}}_{\text{full}}$ (Eq.~\ref{eq
     \includegraphics[width=\textwidth,
     height=0.1\textheight,
     ]{Model the Train Target’s Distribution (2).png}
-    \caption{WMDO flow chart.}
+    \caption{LDO flow chart.}
     \label{fig:method_large_image}
 \end{figure}
 
