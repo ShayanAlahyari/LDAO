@@ -28,8 +28,11 @@
 \usepackage{colortbl}   % For header row background
 \usepackage{caption}
 \usepackage{subcaption}
-\captionsetup[subfigure]{labelformat=empty}
+\usepackage[x11names]{xcolor}
 
+\captionsetup[subfigure]{labelformat=empty}
+\definecolor{darkgreen}{rgb}{0,0.5,0}
+\definecolor{darkred}{rgb}{0.5,0,0}
 
 % ------------------------------------------------
 %           HYPERREF CONFIGURATION
@@ -45,7 +48,8 @@
 % -----------------------------
 %  SINGLE-COLUMN PAGE SETUP
 % -----------------------------
-\usepackage[margin=1in]{geometry}
+\usepackage[margin=0.8in]{geometry}
+
 
 \begin{document}
 
@@ -60,19 +64,17 @@
 %      ABSTRACT
 % ------------------------
 
-%  Learning from imbalanced data is a major challenge in machine learning, especially for neural networks, which tend to perform poorly under such conditions. Imbalanced regression describes situations where the continuous target variable is distributed unevenly, resulting in sparse target regions and challenges comparable to those in imbalanced classification. Although class imbalance has been widely studied, the same problem in regression remains relatively underexplored and has only a limited number of proposed methods. Existing resampling approaches often rely on arbitrary thresholds that split the target range into rare and normal categories, disregarding the underlying continuous distribution. This can produce synthetic samples that do not capture the continuous nature of the target, ultimately degrading performance of the model. Additionally, some methods rely on undersampling the majority regions, potentially discarding valuable observations. To address these challenges, we propose K2-GAN, a new two-phase data-level oversampling method for imbalanced regression. K2-GAN begins by using K-means to cluster the data into multiple local distribution components, each preserving its distinct statistical characteristics. Next, each cluster undergoes a two-phase oversampling procedure. In the first phase, a cluster-specific kernel density estimation oversamples the data. In the second phase, an unconditional Wasserstein generative adversarial network draws on knowledge transfer from the first phase to generate additional samples that better reflect the local distribution. Throughout both phases, each component is treated independently, modeling and sampling from its own local density without affecting the other clusters. Finally, these augmented clusters are merged into a single training set. In comprehensive evaluations across 51 imbalanced datasets, encompassing both low- and high-dimensional feature spaces, we find that our method outperforms state-of-the-art oversampling approaches. The code and data are available at:
-% \href{https://github.com/ShayanAlahyari/Distribution-Modeling-and-Ratio-Oversampling-for-Imbalanced-Regression}{https://github.com/ShayanAlahyari/LDO}.
 
 
 \begin{abstract}
-Imbalanced regression occurs when continuous target variables have skewed distributions, creating sparse regions that are difficult for machine learning models to predict accurately. This issue particularly affects neural networks, which often struggle with imbalanced data. While class imbalance in classification has been extensively studied, imbalanced regression remains relatively unexplored with few effective solutions. Existing approaches often rely on arbitrary thresholds to categorize samples as rare or frequent, ignoring the continuous nature of target distributions. These methods can produce synthetic samples that fail to improve model performance and may discard valuable information through undersampling. To address these limitations, we propose LDAO (Local Distribution-based Adaptive Oversampling), a novel data-level approach that avoids categorizing individual samples as rare or frequent. Instead, LDAO learns the global distribution structure by decomposing the dataset into a mixture of local distributions, each preserving its statistical characteristics. LDAO then models and samples from each local distribution independently before merging them into a balanced training set. LDAO achieves a balanced representation across the entire target range while preserving the inherent statistical structure within each local distribution. In extensive evaluations on 45 imbalanced datasets, LDAO outperforms state-of-the-art oversampling methods on both frequent and rare target values, demonstrating its effectiveness for addressing the challenge of imbalanced regression.
+Imbalanced regression occurs when continuous target variables have skewed distributions, creating sparse regions that are difficult for machine learning models to predict accurately. This issue particularly affects neural networks, which often struggle with imbalanced data. While class imbalance in classification has been extensively studied, imbalanced regression remains relatively unexplored, with few effective solutions. Existing approaches often rely on arbitrary thresholds to categorize samples as rare or frequent, ignoring the continuous nature of target distributions. These methods can produce synthetic samples that fail to improve model performance and may discard valuable information through undersampling. To address these limitations, we propose LDAO (Local Distribution-based Adaptive Oversampling), a novel data-level approach that avoids categorizing individual samples as rare or frequent. Instead, LDAO learns the global distribution structure by decomposing the dataset into a mixture of local distributions, each preserving its statistical characteristics. LDAO then models and samples from each local distribution independently before merging them into a balanced training set. LDAO achieves a balanced representation across the entire target range while preserving the inherent statistical structure within each local distribution. In extensive evaluations on 45 imbalanced datasets, LDAO outperforms state-of-the-art oversampling methods on both frequent and rare target values, demonstrating its effectiveness for addressing the challenge of imbalanced regression.
 \end{abstract}
 
 % ------------------------
 %    INDEX TERMS
 % ------------------------
 \begin{flushleft}
-\textbf{Keywords} Imbalanced, regression, Kernel density estimation, Oversampling, Data-level, Supervised learning, local distribution.
+\textbf{Keywords} Imbalanced, Regression, Kernel density estimation, Oversampling, Data-level, Supervised learning, local distribution.
 \end{flushleft}
 
 % ------------------------
@@ -81,39 +83,32 @@ Imbalanced regression occurs when continuous target variables have skewed distri
 \section{Introduction}
 
 
-
-
-
-
 In classification tasks, imbalance occurs when some classes have far fewer samples than others, in both binary and multi-class settings \cite{he2009, haixiang2017}. The minority classes are overshadowed by the majority classes, causing traditional classifiers to focus on the more abundant classes and perform poorly in identifying minority classes \cite{chawla2002}. This leads to inaccurate detection of minority classes since models struggle to recognize patterns in sparsely sampled regions \cite{buda2018}. Critical applications like fraud detection, medical diagnostics, and fault detection are particularly affected, as rare but important classes might be missed \cite{johnson2019}. Therefore, effective handling of imbalanced data is crucial for reliable performance across all classes, ensuring significant rare examples are properly detected \cite{liu2009}.
 
 \smallskip
 
 While imbalance is widely studied in classification \cite{he2009}, it also affects regression tasks that predict continuous values \cite{krawczyk2016}. Imbalanced regression occurs when certain target ranges (typically rare or extreme cases) have significantly fewer samples than others \cite{branco2016, torgo2013}. Traditional regression models struggle to accurately predict these rare values because they focus on more frequent, well-represented ranges \cite{chawla2004, branco2016}. Accurately predicting these less frequent target ranges is challenging yet crucial for many real-world applications \cite{torgo2013}.
 
-
-% \begin{figure}[H]
-%     \vspace{-0.5cm}   % Adjust to suit
-%     \centering
-%     \includegraphics[width=0.8\textwidth,
-%     % height=0.4\textheight,
-%     ]{95897b27-e602-4d59-b646-c9fcb1bbdce1.png}
-%     \caption{The left image shows a classification problem with easily identifiable minority (blue) and majority (red) classes. The right image illustrates an imbalanced regression problem, where target values in the sparse region are underrepresented, making them more difficult to detect and accurately predict.}
-%     \label{fig:sparse_region}
-% \end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=\textwidth]{imbalance_problem.pdf}
-\caption{\footnotesize The left image shows a classification problem with easily identifiable minority (red) and majority (green) classes. The right image illustrates an imbalanced regression problem, where target values in the sparse region are underrepresented, making them more difficult to detect and accurately predict.}
-    \label{fig:sparse_region}
-\end{figure}
+\smallskip
 
 Figure~\ref{fig:sparse_region} contrasts imbalanced classification with imbalanced regression. In classification, identifying minority classes is straightforward because labels are discrete and can be counted. In regression, minority regions exist within continuous target distributions, often in sparsely populated tails. While classification imbalance relates to distinct labels, regression imbalance depends on distribution shape (skewed or multi-modal). Classification methods cannot be directly applied to regression since there is no simple way to count labels in order to identify underrepresented values. This makes detecting and addressing sparse regions a significant challenge in imbalanced regression.
 
 \smallskip
 
-Imbalanced regression impacts many critical real-world applications. In genomic prediction, pathogenicity scores typically favor certain ranges, placing potentially harmful genetic variants in sparse distribution tails. Standard models struggle to predict these rare but important extremes \cite{kaur24}. For extreme wind event forecasting, measurements primarily cluster around moderate speeds, while infrequent high-speed events critical for hazard warnings and energy grid stability are often underestimated by conventional models that prioritize majority data \cite{scheepens23}. In healthcare, hospital length-of-stay data is heavily skewed toward short stays, with fewer patients requiring extended care. Models trained predominantly on brief stays underestimate resource needs for longer admissions, affecting capacity planning and staffing, particularly during crises like pandemics \cite{xu2022}. Similar challenges exist in economics, finance, and engineering, where accurately predicting rare but high-impact events is essential for effective decision-making.
+
+Imbalanced regression impacts many critical real-world applications. In genomic prediction, pathogenicity scores typically favor certain ranges, placing potentially harmful genetic variants in sparse distribution tails. Standard models struggle to predict these rare but important extremes \cite{kaur24}. 
+
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{imbalance_problem.pdf}
+\caption{\footnotesize The left image shows a classification problem with easily identifiable minority (red) and majority (green) classes. The right image illustrates an imbalanced regression problem where target values in the sparse region (red regions) are underrepresented, making them more difficult to detect and accurately predict.}
+    \label{fig:sparse_region}
+\end{figure}
+
+
+For extreme wind event forecasting, measurements primarily cluster around moderate speeds, while infrequent high-speed events critical for hazard warnings and energy grid stability are often underestimated by conventional models that prioritize majority data \cite{scheepens23}. In healthcare, hospital length-of-stay data is heavily skewed toward short stays, with fewer patients requiring extended care. Models trained predominantly on brief stays underestimate resource needs for longer admissions, affecting capacity planning and staffing, particularly during crises like pandemics \cite{xu2022}. Similar challenges exist in economics, finance, and engineering, where accurately predicting rare but high-impact events is essential for effective decision-making.
 
 \smallskip
 
@@ -138,11 +133,11 @@ Several SMOTE variations have emerged to address specific challenges. Borderline
 
 \smallskip
 
-Adapting data-level strategies to regression is more difficult because the target variable is continuous \cite{he2013, krawczyk2016}. Early approaches to imbalanced regression modified classification resampling by introducing a relevance function $\phi(y)$ to distinguish between "rare" and "frequent" target regions \cite{torgo2007}. This function assigns higher scores to more extreme target values, while a user-specified threshold determines which points are rare versus common \cite{torgo2007, ribeiro2011a}.
+Adapting data-level strategies to regression is more difficult because the target variable is continuous \cite{he2013, krawczyk2016}. Early approaches to imbalanced regression modified classification resampling by introducing a relevance function $\phi(y)$ to distinguish between "rare" and "frequent" target regions \cite{torgo2007}. This function assigns higher scores to more extreme target values, while a user-specified threshold determines which points are rare versus common \cite{torgo2007, ribeiro2011a}. Using this relevance function framework, Torgo et al.~developed two main resampling methods for regression. 
 
 \smallskip
 
-Using this relevance function framework, Torgo et al.~developed two main resampling methods for regression. The first applies random undersampling to remove samples with low $\phi(y)$ scores (common target values), reducing their overrepresentation. The second method, SMOTER, generates new samples in regions with high $\phi(y)$ scores (rare target values) by interpolating feature values of nearby rare samples and calculating target values as weighted averages of these neighbors \cite{torgo2013, torgo2015}. While these approaches were pioneering in addressing regression imbalance and demonstrated that focusing on rare targets improves performance \cite{torgo2015}, they depend on user-chosen rarity thresholds that may be arbitrary and fail to reflect the true structure of continuous target distributions \cite{branco2019}.
+The first method applies random undersampling to remove samples with low $\phi(y)$ scores (common target values), reducing their overrepresentation. The second method, SMOTER, generates new samples in regions with high $\phi(y)$ scores (rare target values) by interpolating feature values of nearby rare samples and calculating target values as weighted averages of these neighbors \cite{torgo2013, torgo2015}. While these approaches were pioneering in addressing regression imbalance and demonstrated that focusing on rare targets improves performance \cite{torgo2015}, they depend on user-chosen rarity thresholds that may be arbitrary and fail to reflect the true structure of continuous target distributions \cite{branco2019}.
 
 \smallskip
 
@@ -193,7 +188,7 @@ Evaluation metrics for imbalanced regression have evolved alongside data-level, 
 \section{Motivation}
 \label{sec:motivation}
 
-Despite recent advances, imbalanced regression still faces significant challenges. Current methods often identify samples as rare or frequent and oversample the distribution based on that assumption. In many cases, these assumptions might be wrong due to the complexity of continuous distributions and might not help the model generalize better or improve its prediction on rare samples. Also, many approaches try to oversample rare targets and undersample frequent targets, which distorts the nature of the dataset. Removing information from datasets and labeling certain ranges as rare or frequent is problematic, as rare samples can occur in any range within the global distribution, especially in multi-modal distributions. Often, distributions have latent characteristics which make it difficult to simply classify which samples are rare or frequent.
+Despite recent advances, imbalanced regression still faces significant challenges. Current methods often identify samples as rare or frequent and oversample the distribution based on that assumption. In many cases, these assumptions might be oversimplifications due to the complexity of continuous distributions and might not help the model generalize better or improve its prediction on rare samples. Also, many approaches try to oversample rare targets and undersample frequent targets, which distorts the nature of the dataset. Removing information from datasets and labeling certain ranges as rare or frequent is problematic, as rare samples can occur in any range within the global distribution, especially in multi-modal distributions. Often, distributions have latent characteristics which make it difficult to simply classify which samples are rare or frequent.
 
 \smallskip
 
@@ -221,49 +216,41 @@ Our method, LDAO, addresses these limitations by preserving data structure acros
 
 We now describe LDAO, our local distribution-based adaptive oversampling method that effectively addresses the challenges of imbalanced regression. LDAO decomposes the global distribution using \textit{k}-means clustering. This clustering is applied simultaneously to both input features and target values, creating a mixture of local distributions in a joint feature–target space.
 
-After clustering, we apply Gaussian kernel density estimation (KDE) within each cluster to model the local distribution independently and generate synthetic data points that closely match the cluster’s actual distribution. By drawing samples independently within each cluster, LDAO avoids creating unrealistic synthetic points.
+\smallskip
 
-Finally, we merge these augmented clusters into a single augmented dataset. The entire workflow is summarized in Figure~\ref{fig:method_large_image}: data clustering, local density estimation for synthetic data generation, and merging to achieve a balanced overall distribution.
+After clustering, we apply Gaussian kernel density estimation (KDE) within each cluster to model the local distribution independently and generate synthetic data points that closely match the cluster’s actual distribution. By drawing samples independently within each cluster, LDAO avoids creating unrealistic synthetic points. Finally, we merge these augmented clusters into a single augmented dataset. The entire workflow is summarized in Figure~\ref{fig:method_large_image}: data clustering, local density estimation for synthetic data generation, and merging to achieve an augmented overall distribution.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.6\textwidth]{LDAO.pdf}
+    \includegraphics[width=0.8\textwidth]{LDAO.pdf}
 \caption{\footnotesize LDAO process overview. First, the imbalanced dataset (top) is decomposed into clusters. Then, each cluster is oversampled individually using kernel density estimation (middle). Lastly, these balanced clusters are combined into one dataset (bottom).}
     \label{fig:method_large_image}
 \end{figure}
-
-\subsection{Local Distribution-Based Adaptive Oversampling (LDAO)}
-
-Given a dataset \(\mathcal{D} = \{(\mathbf{x}_i, y_i)\}_{i=1}^N\), where \(\mathbf{x}_i \in \mathbb{R}^d\) represents features and \(y_i \in \mathbb{R}\) represents the target variable, imbalance typically manifests as regions with fewer observations, making these areas difficult to model accurately.
-
-LDAO models the joint distribution of features and targets. Each data point \((\mathbf{x}_i, y_i)\) is embedded in the combined feature-target space as \(\mathbf{z}_i = (\mathbf{x}_i, y_i)\in \mathbb{R}^{d+1}\). The overall joint distribution \(P_{X,Y}\) is approximated by a mixture model composed of localized distributions:
-
+Given a dataset \(\mathcal{D} = \{(\mathbf{x}_i, y_i)\}_{i=1}^N\), where \(\mathbf{x}_i \in \mathbb{R}^d\) represents features and \(y_i \in \mathbb{R}\) represents the target variable, imbalance typically manifests as regions with fewer observations, making these areas difficult to model accurately. LDAO models the joint distribution of features and targets. Each data point \((\mathbf{x}_i, y_i)\) is embedded in the combined feature-target space as \(\mathbf{z}_i = (\mathbf{x}_i, y_i)\in \mathbb{R}^{d+1}\). The overall joint distribution \(P_{X,Y}\) is approximated by a mixture model composed of localized distributions:
 \[
 P_{X,Y}(\mathbf{x}, y) \approx \sum_{k=1}^{K} \pi_k \, P_k(\mathbf{x}, y)
 \]
 where \(\pi_k\) denotes the proportion of data in cluster \(k\), and \(P_k\) characterizes the local distribution of that cluster.
 
+\subsection{Clustering in the Joint Feature-Target Space}
 
+We apply the standard \(k\)-means clustering algorithm to the dataset to identify natural clusters in the joint feature–target space. Figure~\ref{fig:clustering} illustrates clustering for a sample data set, projected onto the first three principal components, and shows how points with similar features and target values are grouped for more precise local density modelling. For illustration purposes only, we chose 3 as the number of clusters. In this method, every data point \(\mathbf{z}_i\) is assigned to one of \(K\) clusters. The goal is to find the best set of cluster centroids \(\{\boldsymbol{\mu}_k\}_{k=1}^K\) and assignments \(\{c_i\}_{i=1}^N\) such that the total squared Euclidean distance between the data points and their assigned centroids is minimized. Mathematically, we solve:
+\[
+\underset{\{\boldsymbol{\mu}_k\}_{k=1}^K, \{c_i\}_{i=1}^N}{\arg\min} \; \sum_{i=1}^N \|\mathbf{z}_i - \boldsymbol{\mu}_{c_i}\|^2.
+\]
+This formulation ensures that points with similar characteristics are grouped together \cite{sugar2003,ikotun2023}. 
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.4\textwidth]{K-means_clustering.pdf}
-\caption{\footnotesize K-means clustering in the joint feature–target space for the Boston dataset\cite{harrison1978hedonic}, projected onto the first three principal components. Points within each cluster share similar features and target values, enabling more precise local density modeling. Note that all points contribute to their cluster's density estimation, including those in the distribution tails beyond the displayed probability contours.}
+    \includegraphics[width=0.5\textwidth]{K-means_clustering.pdf}
+\caption{\footnotesize K-means clustering in the joint feature–target space for the Boston dataset \cite{harrison1978hedonic}, projected onto the first three principal components. Data points are grouped into three clusters (each indicated by a unique marker and color). Ellipsoidal density contours characterize the spread and orientation of each cluster. The centroids, marked with prominent gold symbols, represent the mean positions of the data points within their respective clusters.}
     \label{fig:clustering}
 \end{figure}
 
 
-\subsubsection{Clustering in the Joint Feature-Target Space}
-
-We apply the standard \(k\)-means clustering algorithm to the dataset to identify natural clusters in the joint feature–target space. Figure~\ref{fig:clustering} illustrates these clusters, projected onto the first three principal components, and shows how points with similar features and target values are grouped for more precise local density modeling. In this method, every data point \(\mathbf{z}_i\) is assigned to one of \(K\) clusters. The goal is to find the best set of cluster centroids \(\{\boldsymbol{\mu}_k\}_{k=1}^K\) and assignments \(\{c_i\}_{i=1}^N\) such that the total squared Euclidean distance between the data points and their assigned centroids is minimized. Mathematically, we solve:
-\[
-\underset{\{\boldsymbol{\mu}_k\}_{k=1}^K, \{c_i\}_{i=1}^N}{\arg\min} \; \sum_{i=1}^N \|\mathbf{z}_i - \boldsymbol{\mu}_{c_i}\|^2.
-\]
-This formulation ensures that points with similar characteristics are grouped together\cite{syakur2018,nainggolan2019}. 
-
 % Many studies, including those by Syakur et al. \cite{syakur2018} and Nainggolan et al. \cite{nainggolan2019}, have successfully used this approach to capture inherent data patterns without applying arbitrary thresholds.
 
-\subsubsection{Determining the Number of Clusters}
+\subsection{Determining the Number of Clusters}
 
 The performance of \(k\)-means clustering largely depends on the chosen number of clusters \(K\). To choose an optimal \(K\), we evaluate the Sum of Squared Errors (SSE), defined as:
 \[
@@ -271,18 +258,20 @@ The performance of \(k\)-means clustering largely depends on the chosen number o
 \]
 where \(\mathcal{D}_k\) represents the set of data points in cluster \(k\). As we increase \(K\), the SSE typically decreases because each point is closer to its cluster center. 
 
-To mitigate the pitfalls of the trade-off between oversimplification and excessive clustering, we use the elbow method. This method involves calculating the relative reduction in SSE when increasing the number of clusters. We define the relative improvement \(\Delta(K)\) as:
+To mitigate the pitfalls of the trade-off between oversimplification and excessive clustering, we use the elbow method \cite{syakur2018,nainggolan2019}. This method involves calculating the relative reduction in SSE when increasing the number of clusters. We define the relative improvement \(\Delta(K)\) as:
 \[
 \Delta(K) = \frac{\mathrm{SSE}(K-1) - \mathrm{SSE}(K)}{\mathrm{SSE}(K-1)},\quad K=2,\dots,K_{\max}.
 \]
-The optimal number of clusters $(K^*)$ is typically found where there is a significant drop in $\Delta(K)$. One important note is that at the elbow point, adding more clusters does not considerably reduce the Sum of Squared Errors (SSE) and might cause overfitting by capturing noise rather than true underlying patterns\cite{sugar2003,ikotun2023}. 
+The optimal number of clusters $(K^*)$ is typically found where there is a significant drop in $\Delta(K)$. One important note is that at the elbow point, adding more clusters does not considerably reduce the Sum of Squared Errors (SSE) and might cause overfitting by capturing noise rather than true underlying patterns \cite{syakur2018,nainggolan2019}. 
 
-
+\subsection{Kernel Density Estimation in Each Cluster} 
+After the clustering step, we model the local distributions within each cluster separately using kernel density estimation (KDE) \cite{silverman1986}, as illustrated in Figure~\ref{fig:kde}. 
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.40\textwidth]{KDE.pdf}
-  \caption{\footnotesize After clustering with \(k\)-means, each cluster is modeled independently using KDE in the combined feature-target space.}
+  \includegraphics[width=0.5\textwidth]{KDE.pdf}
+  \caption{\footnotesize Clusters obtained via \(k\)-means on the feature-target data are projected onto two principal components. For each cluster, kernel density estimation (KDE) is performed and the overlaid contour lines represent the density gradients of the data in the reduced space.}
+
   \label{fig:kde}
 \end{figure}
 
@@ -290,8 +279,7 @@ The optimal number of clusters $(K^*)$ is typically found where there is a signi
 
 
 
-\subsubsection{Kernel Density Estimation in Each Cluster} 
-After the clustering step, we model the local distributions within each cluster separately using kernel density estimation (KDE) \cite{silverman1986}, as illustrated in Figure~\ref{fig:kde}. This approach preserves each cluster's local structure, maintaining accurate relationships between features and targets without mixing patterns across clusters. Let each cluster $\mathcal{D}_k$ contain $n_k$ data points in the joint feature-target space: 
+This approach preserves each cluster's local structure, maintaining accurate relationships between features and targets without mixing patterns across clusters. Let each cluster $\mathcal{D}_k$ contain $n_k$ data points in the joint feature-target space: 
 \[ \mathcal{D}_k = \{\mathbf{z}_1^{(k)},\,\mathbf{z}_2^{(k)},\dots,\mathbf{z}_{n_k}^{(k)}\}, \] 
 where each data point is defined as \(\mathbf{z}_j^{(k)} = (\mathbf{x}_j^{(k)},\,y_j^{(k)}) \in \mathbb{R}^{d+1}\). We estimate the local density of cluster \(k\) using KDE with a Gaussian kernel as follows:
 \begin{equation}
@@ -307,24 +295,15 @@ Selecting an appropriate bandwidth matrix $\mathbf{H}$ is critical to KDE perfor
 
 
 
-
-
-
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=0.50\textwidth]{independent_oversampling.pdf}
-  \caption{\footnotesize Each cluster is independently oversampled based on its own density estimate. This ensures that both sparse and dense areas are adequately represented without altering their local characteristics.}
-  \label{fig:cluster3}
-\end{figure}
-
-\subsubsection{Oversampling Clusters}
+\subsection{Oversampling Clusters}
 
 Once the density of each cluster has been estimated, we independently oversample each cluster. Figure~\ref{fig:cluster3} illustrates this process. Each cluster \(k\), originally containing \(n_k\) points, is expanded by generating synthetic data points until reaching a target size defined as:
 \[
 n_k' = \lceil \alpha_k n_k \rceil,
 \]
-where the multiplier \(\alpha_k > 1\) is a parameter of the algorithm that determines how much each cluster grows. We generate exactly \(n_k' - n_k\) synthetic points \(\mathbf{z}^*\) drawn from the local KDE-based density estimate \(\hat{f}_k(\mathbf{z})\). The multiplier \(\alpha_k\) can be uniform (identical across clusters) or adaptive (higher for clusters that are smaller or less dense). Typically, smaller or sparser clusters receive a larger multiplier, ensuring balanced representation throughout the dataset. Synthetic points \(\mathbf{z}^*\) are generated directly from the KDE-based local distribution defined in Equation~\eqref{eq:kde}:
+where the multiplier \(\alpha_k > 1\) is a parameter of the algorithm that determines how much each cluster grows. We generate exactly \(n_k' - n_k\) synthetic points \(\mathbf{z}^*\) drawn from the local KDE-based density estimate \(\hat{f}_k(\mathbf{z})\). The multiplier \(\alpha_k\) can be uniform (identical across clusters) or adaptive (higher for clusters that are smaller or less dense). Typically, smaller or sparser clusters receive a larger multiplier, ensuring balanced representation throughout the dataset. 
+
+Synthetic points \(\mathbf{z}^*\) are generated directly from the KDE-based local distribution defined in Equation~\eqref{eq:kde}:
 \[
 \mathbf{z}^* \sim \hat{f}_k(\mathbf{z}).
 \]
@@ -338,14 +317,46 @@ j \sim \mathrm{Uniform}\{1,\dots,n_k\},
 Here, \(\mathbf{H}^{1/2}\) is the matrix square root (typically via Cholesky decomposition) of the bandwidth covariance matrix \(\mathbf{H}\). This procedure accurately and efficiently samples synthetic points from the KDE estimate, reflecting the local structure and covariance of each cluster\cite{silverman1986,scott2015}.
 
 
+% \begin{figure}[H]
+%     \centering
+%     % First subfigure
+%     \begin{subfigure}[b]{0.40\textwidth}
+%         \centering
+%         \includegraphics[width=\textwidth]{cluster_1.pdf}
+%         % \caption{\footnotesize Cluster 1}
+%         \label{fig:cluster1}
+%     \end{subfigure}
+%     % \hfill
+%     % Second subfigure
+%     \begin{subfigure}[b]{0.40\textwidth}
+%         \centering
+%         \includegraphics[width=\textwidth]{cluster_2.pdf}
+%         % \caption{\footnotesize Cluster 2}
+%         \label{fig:cluster2}
+%     \end{subfigure}
+%     % \hfill
+%     % Third subfigure
+%     \begin{subfigure}[b]{0.40\textwidth}
+%         \centering
+%         \includegraphics[width=\textwidth]{cluster_3.pdf}
+%         % \caption{\footnotesize Cluster 3}
+%         \label{fig:cluster3}
+%     \end{subfigure}
+%     % Global caption for the entire figure
+%     \caption{\footnotesize Each cluster is independently oversampled based on its own density estimate. This ensures that both sparse and dense areas are adequately represented without altering their local characteristics.}
+%     \label{fig:cluster3}
+% \end{figure}
+
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.40\textwidth]{merging.pdf}
-  \caption{\footnotesize After independently oversampling each cluster, all clusters are merged into a single balanced dataset, preserving all original points.}
-  \label{fig:merging}
+  \includegraphics[width=0.5\textwidth]{cluster_1.pdf}
+  \caption{\footnotesize Each cluster is independently oversampled based on its own density estimate, ensuring that both sparse and dense areas are adequately represented without altering their local characteristics; the same procedure is applied to the remaining clusters, with cluster 1 displayed here.}
+
+  \label{fig:cluster3}
 \end{figure}
 
-\subsubsection{Merging Augmented Clusters}
+
+\subsection{Merging Augmented Clusters}
 
 After independently oversampling each cluster, the resulting augmented clusters are merged into a single balanced dataset, as illustrated in Figure~\ref{fig:merging}. Formally, each augmented cluster is defined as:
 \[
@@ -365,90 +376,63 @@ Hence, the total size of the merged dataset becomes:
 \]
 By carefully selecting the multipliers \(\alpha_k\), we precisely control the number of synthetic points contributed by each cluster. This yields an augmented representation across the entire range of frequent and rare target values. The complete LDAO procedure is presented in Algorithm~\ref{alg:ldao}, which outlines all four steps of our proposed method.
 
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.5\textwidth]{merging.pdf}
+  \caption{\footnotesize visualization of original (filled markers) and synthetic (outlined markers) points in each cluster after local oversampling. The merged dataset is augmented while preserving all original data.}
+  \label{fig:merging}
+\end{figure}
 
 
-
+% \begin{algorithm}[H]
+% \SetAlgoLined\SetKwInOut{Input}{Input}\SetKwInOut{Output}{Output}
+% \caption{\textbf{Local Distribution-Based Adaptive Oversampling (LDAO)}}
+% \label{alg:ldao}
+% \Input{Dataset $\mathcal{D} = \{(\mathbf{x}_i, y_i)\}_{i=1}^{N}$, $\mathbf{x}_i \in \mathbb{R}^{d}$, $y_i \in \mathbb{R}$; Candidate cluster range: $K_{\min}$ to $K_{\max}$; Oversampling multipliers $\{\alpha_k\}_{k=1}^{K}$}
+% \Output{Augmented dataset $\hat{\mathcal{D}}$ with improved coverage of sparse target regions}
+% \textbf{Step 1: Clustering in Joint Feature–Target Space: } Construct joint vectors $\mathbf{z}_i = (\mathbf{x}_i, y_i) \in \mathbb{R}^{d+1}$ for all $i=1,\dots,N$. \For{$K = K_{\min}$ \KwTo $K_{\max}$}{ Run $k$-means clustering minimizing SSE:
+% \[
+% \underset{\{\boldsymbol{\mu}_k\}_{k=1}^K,\{c_i\}_{i=1}^N}{\arg\min}\;\sum_{i=1}^{N}\|\mathbf{z}_i - \boldsymbol{\mu}_{c_i}\|^2,\quad \mathrm{SSE}(K) = \sum_{k=1}^{K}\sum_{\mathbf{z}\in\mathcal{D}_k}\|\mathbf{z}-\boldsymbol{\mu}_k\|^2.
+% \]
+% } Compute relative SSE reduction:
+% \[
+% \Delta(K) = \frac{\mathrm{SSE}(K-1)-\mathrm{SSE}(K)}{\mathrm{SSE}(K-1)},\quad K=2,\dots,K_{\max}.
+% \]
+% Select optimal $K^*$ as the value where $\Delta(K)$ shows a significant drop-off (the `elbow point') and cluster data using optimal $K^*$, obtaining clusters $\{\mathcal{D}_k\}_{k=1}^{K^*}$.\\[1mm]
+% \textbf{Step 2: Local Kernel Density Estimation: } \For{$k = 1$ \KwTo $K^*$}{ Fit Gaussian KDE on cluster $\mathcal{D}_k=\{\mathbf{z}_j^{(k)}\}_{j=1}^{n_k}$:
+% \[
+% \hat{f}_k(\mathbf{z}) = \frac{1}{n_k}\sum_{j=1}^{n_k}\frac{1}{(2\pi)^{\frac{d+1}{2}}|\mathbf{H}|^{\frac{1}{2}}}\exp\left(-\frac{1}{2}(\mathbf{z}-\mathbf{z}_j^{(k)})^{\top}\mathbf{H}^{-1}(\mathbf{z}-\mathbf{z}_j^{(k)})\right).
+% \]
+% }\\[1mm]
+% \textbf{Step 3: Synthetic Data Generation: } \For{$k = 1$ \KwTo $K^*$}{ Compute augmented cluster size:
+% \[
+% n_k' = \lceil \alpha_k n_k \rceil,
+% \]
+% generate exactly $(n_k'-n_k)$ synthetic samples $\mathbf{z}^{*}$ from KDE:
+% \[
+% \mathbf{z}^{*} = \mathbf{z}_j^{(k)} + \mathbf{H}^{\frac{1}{2}}\boldsymbol{\epsilon},\quad \boldsymbol{\epsilon}\sim\mathcal{N}(\mathbf{0},\mathbf{I}_{d+1}),\quad j\sim\text{Uniform}\{1,\dots,n_k\},
+% \]
+% and store generated points as $\mathcal{D}_k^{*}$.
+% }\\[1mm]
+% \textbf{Step 4: Merge Augmented Clusters: } Combine original and synthetic points:
+% \[
+% \hat{\mathcal{D}}_k = \mathcal{D}_k\cup\mathcal{D}_k^{*},\quad k=1,\dots,K^*,
+% \]
+% merge clusters into final augmented dataset:
+% \[
+% \hat{\mathcal{D}}=\bigcup_{k=1}^{K^*}\hat{\mathcal{D}}_k.
+% \]
+% \Return $\hat{\mathcal{D}}$
+% \end{algorithm}
 
 \begin{algorithm}[H]
-\scalebox{0.6}{%
-\begin{minipage}{\linewidth}
-\SetAlgoLined
-\SetKwInOut{Input}{Input}
-\SetKwInOut{Output}{Output}
+\SetAlgoLined\SetKwInOut{Input}{Input}\SetKwInOut{Output}{Output}
 \caption{\textbf{Local Distribution-Based Adaptive Oversampling (LDAO)}}
 \label{alg:ldao}
-\Input{
-    Dataset $\mathcal{D} = \{(\mathbf{x}_i, y_i)\}_{i=1}^{N}$, $\mathbf{x}_i \in \mathbb{R}^{d}$, $y_i \in \mathbb{R}$\\
-    Candidate cluster range: $K_{\min}$ to $K_{\max}$\\
-    Oversampling multipliers $\{\alpha_k\}_{k=1}^{K}$
-}
-\Output{
-    Augmented dataset $\hat{\mathcal{D}}$ with improved coverage of sparse target regions
-}
-\BlankLine
-\textbf{Step 1: Clustering in Joint Feature–Target Space}\\
-Construct joint vectors $\mathbf{z}_i = (\mathbf{x}_i, y_i) \in \mathbb{R}^{d+1}$ for all $i=1,\dots,N$.\\
-\For{$K = K_{\min}$ \KwTo $K_{\max}$}{
-    Run $k$-means clustering minimizing SSE:
-    \[
-    \underset{\{\boldsymbol{\mu}_k\}_{k=1}^K,\{c_i\}_{i=1}^N}{\arg\min}\;\sum_{i=1}^{N}\|\mathbf{z}_i - \boldsymbol{\mu}_{c_i}\|^2
-    \]
-    Compute SSE for current $K$:
-    \[
-    \mathrm{SSE}(K) = \sum_{k=1}^{K}\sum_{\mathbf{z}\in\mathcal{D}_k}\|\mathbf{z}-\boldsymbol{\mu}_k\|^2
-    \]
-}
-Compute relative SSE reduction:
-\[
-\Delta(K) = \frac{\mathrm{SSE}(K-1)-\mathrm{SSE}(K)}{\mathrm{SSE}(K-1)},\quad K=2,\dots,K_{\max}
-\]
-Select optimal $K^*$ as the value where $\Delta(K)$ shows a significant drop-off (the `elbow point').\\
-Cluster data using optimal $K^*$, obtaining clusters $\{\mathcal{D}_k\}_{k=1}^{K^*}$.
-\BlankLine
-\textbf{Step 2: Local Kernel Density Estimation}\\
-\For{$k = 1$ \KwTo $K^*$}{
-    Fit Gaussian KDE on cluster $\mathcal{D}_k=\{\mathbf{z}_j^{(k)}\}_{j=1}^{n_k}$:
-    \[
-      \hat{f}_k(\mathbf{z}) = \frac{1}{n_k}\sum_{j=1}^{n_k}\frac{1}{(2\pi)^{\frac{d+1}{2}}|\mathbf{H}|^{\frac{1}{2}}}\exp\left(-\frac{1}{2}(\mathbf{z}-\mathbf{z}_j^{(k)})^{\top}\mathbf{H}^{-1}(\mathbf{z}-\mathbf{z}_j^{(k)})\right)
-    \]
-}
-\BlankLine
-\textbf{Step 3: Synthetic Data Generation}\\
-\For{$k = 1$ \KwTo $K^*$}{
-    Compute augmented cluster size:
-    \[
-    n_k' = \lceil \alpha_k n_k \rceil
-    \]
-    Generate exactly $(n_k'-n_k)$ synthetic samples $\mathbf{z}^{*}$ from KDE:
-    \[
-    \mathbf{z}^{*} = \mathbf{z}_j^{(k)} + \mathbf{H}^{\frac{1}{2}}\boldsymbol{\epsilon},\quad \boldsymbol{\epsilon}\sim\mathcal{N}(\mathbf{0},\mathbf{I}_{d+1}),\quad j\sim\text{Uniform}\{1,\dots,n_k\}.
-    \]
-    Store generated points as $\mathcal{D}_k^{*}$.
-}
-\BlankLine
-\textbf{Step 4: Merge Augmented Clusters}\\
-Combine original and synthetic points:
-\[
-\hat{\mathcal{D}}_k = \mathcal{D}_k\cup\mathcal{D}_k^{*},\quad k=1,\dots,K^*
-\]
-Merge clusters into final augmented dataset:
-\[
-\hat{\mathcal{D}}=\bigcup_{k=1}^{K^*}\hat{\mathcal{D}}_k
-\]
-\Return $\hat{\mathcal{D}}$
-\end{minipage}%
-}
+\Input{Dataset $\mathcal{D}=\{(\mathbf{x}_i,y_i)\}_{i=1}^{N}$, $\mathbf{x}_i\in\mathbb{R}^{d}$, $y_i\in\mathbb{R}$; cluster range: $K_{\min}$ to $K_{\max}$; oversampling multipliers $\{\alpha_k\}_{k=1}^K$}
+\Output{Augmented dataset $\hat{\mathcal{D}}$}
+Construct joint vectors $\mathbf{z}_i=(\mathbf{x}_i,y_i)\in\mathbb{R}^{d+1}$, $i=1,\dots,N$. \For{$K=K_{\min}$ \KwTo $K_{\max}$}{ Run $k$-means: $\min_{\{\boldsymbol{\mu}_k\},\{c_i\}}\sum_{i=1}^{N}\|\mathbf{z}_i-\boldsymbol{\mu}_{c_i}\|^2$, compute $\mathrm{SSE}(K)=\sum_{k=1}^{K}\sum_{\mathbf{z}\in\mathcal{D}_k}\|\mathbf{z}-\boldsymbol{\mu}_k\|^2$. } Compute $\Delta(K)=\frac{\mathrm{SSE}(K-1)-\mathrm{SSE}(K)}{\mathrm{SSE}(K-1)}$, $K=2,\dots,K_{\max}$; choose $K^*$ where $\Delta(K)$ drops significantly; cluster data into $\{\mathcal{D}_k\}_{k=1}^{K^*}$. \For{$k=1$ \KwTo $K^*$}{ Fit Gaussian KDE on $\mathcal{D}_k=\{\mathbf{z}_j^{(k)}\}_{j=1}^{n_k}$: $\hat{f}_k(\mathbf{z})=\frac{1}{n_k}\sum_{j=1}^{n_k}\frac{1}{(2\pi)^{\frac{d+1}{2}}|\mathbf{H}|^{1/2}}\exp\Bigl(-\frac{1}{2}(\mathbf{z}-\mathbf{z}_j^{(k)})^\top\mathbf{H}^{-1}(\mathbf{z}-\mathbf{z}_j^{(k)})\Bigr)$. } \For{$k=1$ \KwTo $K^*$}{ Set $n_k'=\lceil\alpha_kn_k\rceil$, generate $(n_k'-n_k)$ samples $\mathbf{z}^*=\mathbf{z}_j^{(k)}+\mathbf{H}^{1/2}\boldsymbol{\epsilon}$ with $\boldsymbol{\epsilon}\sim\mathcal{N}(\mathbf{0},\mathbf{I}_{d+1})$, $j\sim\text{Uniform}\{1,\dots,n_k\}$, store as $\mathcal{D}_k^*$. } Define $\hat{\mathcal{D}}_k=\mathcal{D}_k\cup\mathcal{D}_k^*$ for each $k$, and merge: $\hat{\mathcal{D}}=\bigcup_{k=1}^{K^*}\hat{\mathcal{D}}_k$. \Return $\hat{\mathcal{D}}$
 \end{algorithm}
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -463,7 +447,9 @@ Merge clusters into final augmented dataset:
 We evaluated LDAO with current state-of-the-art imbalanced regression approaches using a diverse collection of benchmark datasets. This section details our experimental design, including dataset selection, baseline methods, implementation specifics, hyperparameter tuning, and validation procedures. 
 
 
+\subsection{Datasets}
 
+We evaluated our method using 45 datasets from three sources: the Keel repository \cite{alcala2011}, the collection at \url{https://paobranco.github.io/DataSets-IR} \cite{branco2019}, and the repository at \url{https://github.com/JusciAvelino/imbalancedRegression} \cite{avelino2024}. 
 
 
 
@@ -514,9 +500,7 @@ TREASURY        & 1,049  & 15 & Medium &                      &        &    &   
 \end{table}
 
 
-\subsection{Datasets}
-
-We evaluated our method using 45 datasets from three sources: the Keel repository \cite{alcala2011}, the collection at \url{https://paobranco.github.io/DataSets-IR} \cite{branco2019}, and the repository at \url{https://github.com/JusciAvelino/imbalancedRegression} \cite{avelino2024}. These datasets span multiple domains and vary in size, dimensionality, and degree of imbalance, making them standard benchmarks for the rigorous evaluation of imbalanced regression methods and enabling fair comparisons with existing approaches. Table~\ref{tab:dataset-characteristics} shows the number of instances and features for each dataset.~For further analysis in the results section, we categorized the datasets based on their number of instances. Specifically, datasets with fewer than 500 instances are labeled as "Small", those with between 500 and 1999 instances as "Medium", and those with more than 1999 instances as "Large". This categorization facilitates a detailed evaluation of our method’s performance relative to dataset size.
+These datasets span multiple domains and vary in size, dimensionality, and degree of imbalance, making them standard benchmarks for the rigorous evaluation of imbalanced regression methods and enabling fair comparisons with existing approaches. Table~\ref{tab:dataset-characteristics} shows the number of instances and features for each dataset.~For further analysis in the results section, we categorized the datasets based on their number of instances. Specifically, datasets with fewer than 500 instances are labeled as "Small", those with between 500 and 1999 instances as "Medium", and those with more than 1999 instances as "Large". This categorization facilitates a detailed evaluation of our method’s performance relative to dataset size.
 
 
 
@@ -568,15 +552,11 @@ Mean Absolute Error (MAE) is an alternative error metric that evaluates the over
 \end{equation}
 MAE is less sensitive to outliers compared to RMSE and provides a straightforward interpretation of the average prediction error.
 
-% \subsubsection{Wilcoxon Statistical Test}
-% The Wilcoxon signed-rank test is a non-parametric test used to compare paired samples, which in our context helps in assessing whether the differences in performance between LDAO and each of the competing methods are statistically significant. Let \(d_i = m_{i}^{\text{(LDAO)}} - m_{i}^{\text{(competing)}}\) be the difference in performance metrics (such as RMSE or MAE) for the \(i\)-th fold. First, compute the differences \(d_i\) for each pair and discard any pairs where \(d_i = 0\). Next, rank the absolute differences \(|d_i|\) in ascending order, assigning average ranks in the case of ties. Then, sum the ranks corresponding to the positive differences (denoted by \(W^+\)) and the negative differences (denoted by \(W^-\)). Finally, the test statistic is defined as the smaller of \(W^+\) and \(W^-\). Under the null hypothesis that there is no significant difference between the paired observations, the test statistic follows a known distribution that can be used to determine the \(p\)-value. A \(p\)-value smaller than a significance level (typically, \(p < 0.05\)) indicates that the performance differences are statistically significant\cite{wilcoxon1945}.
-
-
-
-
-
 \subsection{Machine Learning Algorithms}
-We evaluated all methods using a Multi-Layer Perceptron (MLP) with three hidden layers (10 neurons each) and ReLU activations, following \cite{steininger2021}. The output layer uses linear activation for regression. We trained models for 1000 epochs using Adam optimizer with early stopping to prevent overfitting.~We compared LDAO against four baseline approaches: Baseline (no resampling, using the original imbalanced data), SMOGN (an extension of SMOTER that incorporates Gaussian noise during oversampling), G-SMOTE (Geometric SMOTE adapted for regression tasks, using geometric interpolation), and DenseLoss (a cost-sensitive approach that weights errors by target density). These methods represent the current state-of-the-art in handling imbalanced regression.
+Following the approach of \cite{steininger2021}, we evaluated all methods using a Multi-Layer Perceptron (MLP) with three hidden layers (10 neurons each) and ReLU activations. The output layer uses linear activation for regression. We trained models for 1000 epochs using Adam optimizer with early stopping to prevent overfitting. We compared LDAO against four approaches: Baseline (no resampling, using the original imbalanced data), SMOGN (an extension of SMOTER that incorporates Gaussian noise during oversampling), G-SMOTE (Geometric SMOTE adapted for regression tasks, using geometric interpolation), and DenseLoss (a cost-sensitive approach that weights errors by target density). These methods represent the current state-of-the-art method for handling imbalanced regression.
+
+
+
 
 \subsection{Implementation Resources}
 For our evaluation metrics, we utilized the SERA implementation from the ImbalancedLearningRegression Python package \cite{wu2022}.~The SMOGN method was implemented using the package developed by Kunz \cite{kunz2020}. We implemented the DenseLoss and G-SMOTE methods based on their original papers, carefully following the authors' descriptions and guidelines to ensure faithful reproduction of their approaches. To optimize the hyperparameters for each method, we employed the Optuna framework \cite{akiba2019}. Optuna leverages Bayesian optimization using the Tree-structured Parzen Estimator (TPE) sampler, which efficiently balances exploration and exploitation during the search process. By tuning hyperparameters separately for each dataset, our approach accommodates the unique statistical properties and distribution characteristics inherent to each dataset, ensuring optimal performance for all methods.
@@ -588,9 +568,9 @@ We employed 5 runs of 5-fold cross-validation for all experiments. This outer fo
 Table \ref{tab:hyperparameters} presents the hyperparameters and search ranges for each method. LDAO's parameters include the oversampling multiplier and KDE bandwidth. SMOGN uses neighborhood size, sampling approach, and relevance threshold. G-SMOTE involves quantile for rarity, truncation factor, deformation factor, number of neighbors, and oversampling factor. DenseLoss works with the density weighting parameter.
 \begin{table}[H]
 \centering
-\caption{Hyperparameter search spaces for each compared method}
+\caption{\footnotesize Hyperparameter search spaces for each compared method}
 \label{tab:hyperparameters}
-\resizebox{\textwidth}{!}{%
+\resizebox{0.6\textwidth}{!}{%
 \begin{tabular}{llll}
 \toprule
 \textbf{Method} & \textbf{Hyperparameter} & \textbf{Range} & \textbf{Description} \\
@@ -627,9 +607,6 @@ DenseLoss & alpha           & [0.0, 2.0]   & Density weighting factor \\
 \section{Results}
 \label{sec:results}
 
-% We present the results of comparing LDAO with state-of-the-art oversampling methods in various aspects, each representing a unique aspect of performance of each method. In figure \ref{fig:four_figures} we compared the LDAO against each competing method as pair-wise comparison for each metric(RMSE, SERA, MAE) independently. This evaluation reveals the performance of LDAO against other method independently and is informative in a way that see how directly LDAO is competitive against each method for different metrics. RMSE and MAE shows the overall performance of the model over all the distribution and SERA put more weights towards the rare samples. For each dataset there is one win and 45 wins in total. Each win consist of 25 folds. For each dataset we calculate to see which method has more wins over the 25 folds and the method who has the more wins over the folds, are the winner for that specific dataset. The process is repeated 4 times each against one of the competing methods. After specifying the winner for a dataset, a Wilcoxon statistical test is applied on the vector of LDAO and its competing method. Each vector consist of 25 values which representing the value for the loss metric(RMSE, MAE, SERA). We calculated the differences between the LDAO loss metric vecotr and its competing method to get a difference vector. The Wilcoxon statistical test is then applied to the difference vector to evaluate if the win over 25 folds was statistically significant or not\cite{wilcoxon1945}.
-
-% In Figure \ref{fig:four_figures}, the light color shows the total number of wins for each method and the darker part shows how many of those wins were significant. Figure \ref{fig:four_figures} shows that LDAO outperforming all the competing methods across all metrics. SMOGN showing a very low performance over RMSE and MAE but a better performance on SERA as its main focus is on rare samples but still not as good as LDAO. The other methods shows a balance on how they perform on different metrics.
 
 
 \noindent
@@ -637,11 +614,12 @@ We present the results of comparing LDAO with state-of-the-art oversampling meth
 
 \smallskip
 
-For each dataset, a winner is determined based on the outcomes over 25 folds, meaning that each dataset contributes one win, and there are 45 wins in total. Specifically, within each dataset, the method that prevails in the majority of the 25 folds is declared the winner. This procedure is repeated against each competing method. Next, we perform the Wilcoxon statistical test to compare LDAO’s performance vector with that of the competing method. In this test, we compute the differences between the 25-fold loss metric values of LDAO and those of the competing method to construct a difference vector. The Wilcoxon test then examines whether these differences are statistically significant, using an alpha level of 0.05, which indicates a 5\% risk of incorrectly concluding that a difference exists when there is none \cite{wilcoxon1945}.
+For each dataset, a winner is determined based on the outcomes over 25 folds, meaning that each dataset contributes one win, and there are 45 wins in total. Specifically, within each dataset, the method that prevails in the majority of the 25 folds is declared the winner. This procedure is repeated against each competing method. Next, we perform the Wilcoxon Signed-Rank Test to compare LDAO’s performance vector with that of the competing method. In this test, we compute the differences between the 25-fold loss metric values of LDAO and those of the competing method to construct a difference vector. The Wilcoxon test then examines whether these differences are statistically significant, using an alpha level of 0.05, which indicates a 5\% risk of incorrectly concluding that a difference exists when there is none \cite{wilcoxon1945}.
 
 \smallskip
 
-In Figure \ref{fig:four_figures}, the lighter color represents the total number of wins for each method, while the darker portion indicates the number of wins that are statistically significant. The figure illustrates that LDAO outperforms all competing methods across all evaluated metrics. Although SMOGN exhibits lower performance in terms of RMSE and MAE, it achieves better results on SERA, consistent with its emphasis on rare samples, yet it remains inferior to LDAO. The other methods display a more balanced performance across the different metrics.
+In Figure \ref{fig:four_figures}, the lighter color represents the total number of wins for each method, while the darker portion indicates the number of wins that are statistically significant. The figure illustrates that LDAO outperforms all competing methods across all evaluated metrics. Although SMOGN exhibits lower performance in terms of RMSE and MAE, its SERA measurement shows significantly superior performance in more tests, aligning with its emphasis on rare samples; nevertheless, SMOGN remains inferior to LDAO overall. The other methods display a more consistent performance across the different metrics.
+
 
 
 
@@ -661,86 +639,53 @@ In Figure \ref{fig:four_figures}, the lighter color represents the total number 
 
 \begin{figure}[H]
     \centering
-    % First row
-    \begin{subfigure}[b]{0.45\textwidth}
+    % First row with two subfigures of 0.33 width each
+    \begin{subfigure}[b]{0.5\textwidth}
         \centering
         \includegraphics[width=\linewidth]{LDAO_SMOGN.pdf}
-        % \caption{\footnotesize LDAO and SMOGN.}
+        %\caption{\footnotesize LDAO and SMOGN.}
         \label{fig:LDAO_SMOGN}
-    \end{subfigure}
-    \hfill
-    \begin{subfigure}[b]{0.45\textwidth}
+    \end{subfigure}%
+    \begin{subfigure}[b]{0.5\textwidth}
         \centering
         \includegraphics[width=\linewidth]{LDAO_BASELINE.pdf}
-        % \caption{\footnotesize LDAO and BASELINE.}
+        %\caption{\footnotesize LDAO and BASELINE.}
         \label{fig:LDAO_BASELINE}
     \end{subfigure}
-    
-    \vskip\baselineskip % vertical spacing between rows
 
-    % Second row
-    \begin{subfigure}[b]{0.45\textwidth}
+    % Minimal vertical space between rows.
+    \vspace{2mm}
+
+    % Second row with two subfigures of 0.33 width each
+    \begin{subfigure}[b]{0.5\textwidth}
         \centering
         \includegraphics[width=\linewidth]{LDAO_GSMOTE.pdf}
-        % \caption{\footnotesize LDAO and G-SMOTE.}
+        %\caption{\footnotesize LDAO and G-SMOTE.}
         \label{fig:LDAO_GSMOTE}
-    \end{subfigure}
-    \hfill
-    \begin{subfigure}[b]{0.45\textwidth}
+    \end{subfigure}%
+    \begin{subfigure}[b]{0.5\textwidth}
         \centering
         \includegraphics[width=\linewidth]{LDAO_DENSELOSS.pdf}
-        % \caption{\footnotesize LDAO and DENSELOSS.}
+        %\caption{\footnotesize LDAO and DENSELOSS.}
         \label{fig:LDAO_DENSELOSS}
     \end{subfigure}
-    
-    \caption{\footnotesize Pairwise comparisons of LDAO with SMOGN, Baseline, G-SMOTE, and DenseLoss across RMSE, SERA, and MAE. Light-colored bars indicate total wins, while darker segments represent statistically significant wins (\(\alpha=0.05\)).}
 
+    \caption{\footnotesize Pairwise comparisons of LDAO with SMOGN, Baseline, G-SMOTE, and DenseLoss across RMSE, SERA, and MAE. Light-colored bars indicate total wins, while darker segments represent statistically significant wins (\(\alpha=0.05\)).}
     \label{fig:four_figures}
 \end{figure}
 
-% In the figure \ref{fig:combined_scores}, we computed the median and mean of metrics across all the datasets for each method. In these two analysis, we compared all the methods as a whole and not pairwise. The blue line is drawn as the benchmark for baseline method and the percentages both negative and positive shows how each oversampling method is performing regarding the baseline model. LDAO again shows a very competitive and outperformed competing methods even when we compare all of them together at the same time. For each figure, the top 3 method is shown including the baseline method. The only time that a competing method (SMOGN) had a better performance was when we computed the mean of the SERA and SMOGN had a minor better performance over LDAO while both methods (SMOGN and LDAO) were much better than other methods. For computing the mean for SERA across datasets, since the loss on rare samples are generally higher and for some datasets the losses was very high, we used a log 10 base for better clarity. 
 
-% One interesting point, is the strong performance of the baseline model as benchmark when we compare it with oversampling methods. This shows how oversampling methods might perform very poorly without fine tuning them base on the domain knowledge and how complex the imbalance regression problem can be in compare to classification problem. In many continious oversampling methods, methods assume a sample as rare or frequent and this biased assumption might not only help the model learn better, but might cause poorer performance in compared to baseline. One strong characteristic of LDAO is that it is totally data-driven. While there are few parameters to tune, but the user does not need to have a domain knowledge to apply LDAO on the imbalance dataset.
-
-In Figure \ref{fig:combined_scores}, we computed both the median and the mean of various metrics across all datasets for each method. In this analysis, the methods were evaluated collectively rather than in pairwise comparisons. The blue line represents the baseline benchmark, and the percentages, whether negative or positive, indicate how each oversampling technique performs relative to this baseline. 
+In Figure \ref{fig:combined_scores}, we computed both the median and the mean of various metrics across all datasets for each method. In this analysis, the methods were evaluated collectively rather than in pairwise comparisons. The blue circle represents the baseline benchmark, and the percentages, whether negative or positive, indicate how each oversampling technique performs relative to this baseline. 
 
 \smallskip
 
 LDAO again demonstrates robust performance and surpasses its peer methods even when all techniques are assessed together. In each figure, the top three methods are highlighted, including the baseline. The only circumstance in which a peer method, SMOGN, outperformed LDAO occurred when calculating the mean SERA value; in that specific case, SMOGN achieved slightly better results, although both methods significantly outperformed the others. For the SERA mean computation across datasets, a base-10 logarithmic scale was employed to accommodate the high loss values observed on rare samples in some datasets, thereby enhancing clarity.
 
-\smallskip
-
-An interesting observation is the strong performance of the baseline model relative to the oversampling methods. This result suggests that oversampling techniques may underperform without meticulous fine-tuning informed by domain knowledge and underscores the inherent complexity of the imbalanced regression problem compared to classification. In many continuous oversampling approaches, samples are categorized as either rare or frequent; although such a biased assumption can sometimes assist the learning process, it may also lead to diminished performance compared to the baseline. 
-
-\smallskip
-
-A key attribute of LDAO is its completely data-driven nature. Despite having only a few parameters to adjust, LDAO does not require extensive domain expertise, making it readily applicable to a wide range of imbalanced datasets.
-
-
-
-
-
-% \begin{table}[H]
-%   \centering
-%   \caption{Aggregated median scores (across datasets) of the preprocessing algorithms.}
-%   \label{tab:median_scores}
-%   \begin{tabular}{lccc}
-%     \toprule
-%     \textbf{Method}   & \textbf{RMSE} & \textbf{SERA}  & \textbf{MAE}  \\
-%     \midrule
-%     BASELINE   & 7.00  & 4614.70 & 5.36  \\
-%     DENSELOSS  & 7.24  & 4138.11 & 5.40  \\
-%     GSMOTE     & 7.93  & 5133.21 & 5.44  \\
-%     LDAO       & 5.37  & 2113.07 & 4.08  \\
-%     SMOG       & 11.20 & 4332.54 & 8.56  \\
-%     \bottomrule
-%   \end{tabular}
-% \end{table}
 
 \begin{figure}[H]
   \centering
   % First subfigure for median scores
-  \begin{subfigure}[b]{\textwidth}
+  \begin{subfigure}[b]{0.8\textwidth}
     \centering
     \includegraphics[width=\textwidth]{median_metric.pdf}
     \label{fig:median_sub}
@@ -749,221 +694,121 @@ A key attribute of LDAO is its completely data-driven nature. Despite having onl
   % \vspace{1em} % Adjust vertical space as needed
   
   % Second subfigure for mean scores
-  \begin{subfigure}[b]{\textwidth}
+  \begin{subfigure}[b]{0.8\textwidth}
     \centering
     \includegraphics[width=\textwidth]{mean_metric.pdf}
     \label{fig:mean_sub}
   \end{subfigure}
   
-  \caption{Performance evaluation of resampling methods across datasets. The top panel shows the median scores, while the bottom panel presents the mean scores. These aggregated metrics provide insight into the overall consistency and variability of each method relative to the baseline.}
+  \caption{\footnotesize Performance evaluation of resampling methods across datasets. The top panel shows the median scores, while the bottom panel presents the mean scores.}
   \label{fig:combined_scores}
 \end{figure}
 
-% Figure \ref{fig:combined} shows the distribution of rakings across datasets. Specifically, for each dataset we have 5 rankings which rank 1 is the best performer and rank 5 is the worst performer. In the figure \ref{fig:combined}, the smallest circle shows the rank 5 and as we get closer to the datasets the ranks are getting better and the closest circle to the datasets is rank 1. Our LDAO is specified by the color green and we can see that most of the points on the rank 1 cirle is belong to LDAO. The legends provide a detailed summary of number of times each method was rank 1 for different metrics. For a few instances in higher ranks, the performance of two or more methods were almost identical and it was considered as tie and no win for any methods. 
-
-Figure \ref{fig:combined} displays the distribution of rankings across the datasets. Specifically, each dataset is assigned five rankings, with rank 1 representing the best performer and rank 5 the poorest. In the figure, the smallest circle corresponds to rank 5, while the circle closest to the datasets indicates rank 1. Our method, LDAO, is highlighted in green, and it is evident that most of the data points in the rank 1 circle belong to LDAO. The legend provides a detailed account of the number of times each method achieved rank 1 for the different metrics. In several cases at higher rankings, when the performance of two or more methods was nearly identical, no single method was declared the winner.
 
 
-
-\begin{figure}[H]
-  \centering
-  % First subfigure
-  \begin{subfigure}{0.32\textwidth}
-    \centering
-    \includegraphics[width=\textwidth]{rmse_ranking_distribution.pdf}
-    \caption{\footnotesize RMSE Ranking Distribution}
-    \label{fig:rmse}
-  \end{subfigure}
-  \hfill
-  % Second subfigure
-  \begin{subfigure}{0.32\textwidth}
-    \centering
-    \includegraphics[width=\textwidth]{mae_ranking_distribution.pdf}
-    \caption{\footnotesize MAE Ranking Distribution}
-    \label{fig:mae}
-  \end{subfigure}
-  \hfill
-  % Third subfigure
-  \begin{subfigure}{0.32\textwidth}
-    \centering
-    \includegraphics[width=\textwidth]{sera_ranking_distribution.pdf}
-    \caption{\footnotesize SERA Ranking Distribution}
-    \label{fig:sera}
-  \end{subfigure}
-  
-  \caption{\footnotesize Distribution of rankings based on performance metrics. Each subfigure illustrates the ranking frequency for one of the loss metrics (RMSE, MAE, SERA), where rank 1 corresponds to the best performance and rank 5 to the worst. This visualization highlights the frequency with which each method achieved top-ranking performance.}
-  \label{fig:combined}
-\end{figure}
-
-% Figure \ref{fig:ranking-combined} shows a different angle for the mean ranking of the methods. It shows the mean ranking of each method with respect to the size of the dataset. In table~\ref{tab:dataset-characteristics}, we previously categorized the datasets to small, medium and large base on the number of samples in them. The purpose of this evaluation is to see how oversampling methods perform because some of them might perform better with smaller datasets and some of the with larger datasets. Again, LDAO outperformed all the methods and has the lowest(better) mean ranking across all the metrics and all the dataset sizes. The only time that a competing method was better, was on the SERA for large datasets wich SMOGN is slightly better than LDAO while LDAO was better for small and medium size datasets. In this figure as well, the blue line is for the baseline model as the benchmark and we can see how different methods performed with respect to baseline where red percentages mean worse and green percentages mean better performance.
-
-Figure \ref{fig:ranking-combined} offers an alternative view by displaying the mean ranking of each method as a function of dataset size. In Table~\ref{tab:dataset-characteristics}, the datasets are categorized into small, medium, and large based on their number of samples. This evaluation aims to determine how oversampling methods perform across different dataset sizes, as some methods might be more effective on smaller datasets while others excel with larger ones.
+Table~\ref{tab:rank_summary_compact} presents the mean rank of each method for RMSE, SERA, and MAE across all 45 datasets. A Rank is the position given to a method when methods are sorted by performance for a given dataset and metric. Rank 1 for the lowest error (best) and Rank 5 for the highest error (worst). For each dataset and metric, a method’s rank was first averaged over 25 cross‑validation folds; these per‑dataset ranks were then averaged across all datasets to produce the Mean column. The R1 column indicates the number of datasets in which a method achieved the best (lowest) rank, and the R5 column indicates the number of datasets in which it achieved the worst (highest) rank. In cases where two or more methods shared virtually identical best or worst values, no count was assigned, so some column totals may sum to less than 45. 
 
 \smallskip
 
-LDAO consistently outperformed competing methods, achieving the lowest mean ranking across all metrics and dataset sizes. The only case in which a competing method performed slightly better was for the SERA metric on large datasets, where SMOGN edged out LDAO; however, LDAO remained superior for both small and medium datasets. In this figure, the blue line represents the baseline model benchmark, providing a reference for the performance of the various methods. Red percentages denote worse performance relative to the baseline, while green percentages indicate better performance.
+As shown in Table~\ref{tab:rank_summary_compact}, LDAO outperforms the other methods, achieving the lowest mean ranks and the highest R1 counts across RMSE, SERA, and MAE, while SMOGN exhibits the highest R5 counts for RMSE and MAE, indicating the weakest performance on those metrics. Baseline, DenseLoss, and G‑SMOTE show intermediate performance, with G‑SMOTE also recording a high R5 count in SERA.
+
+
+
+
+
+
+
+
+
+\smallskip
+
+
+Figure \ref{fig:ranking-combined} offers an alternative view by displaying the mean ranking of each method as a function of dataset size. The rankings separate the data sets into small, medium and large based on the classifications previously given in table~\ref{tab:dataset-characteristics}. This evaluation aims to determine how oversampling methods perform across different dataset sizes, as some methods might be more effective on smaller datasets while others excel with larger ones.
+
+\smallskip
+
+LDAO consistently outperformed competing methods, achieving the lowest mean ranking across all metrics and dataset sizes. The only case in which a competing method performed slightly better was for the SERA metric on large datasets, where SMOGN outperformed LDAO; however, LDAO remained superior for both small and medium datasets. In this figure, the blue circle represents the baseline model benchmark, providing a reference for the performance of the various methods. 
+
+
+% in your document preamble:
+\definecolor{darkgreen}{RGB}{0,100,0}
+\definecolor{darkred}{RGB}{139,0,0}
+
+% then your table:
+\begin{table}[htbp]
+  \centering
+  \scriptsize
+  \setlength{\tabcolsep}{6pt}
+  \renewcommand{\arraystretch}{1.1}
+  \caption{\footnotesize Mean rank and counts of best (Rank\,1) and worst (Rank\,5) across 45 datasets. The lowest mean ranks are highlighted in bold black, the highest Rank\,1 counts in bold green, and the highest Rank\,5 counts in bold red.}
+
+  \label{tab:rank_summary_compact}
+  \begin{tabular}{@{}l
+                   rrr
+                   rrr
+                   rrr@{}}
+    \toprule
+     & \multicolumn{3}{c}{RMSE}
+     & \multicolumn{3}{c}{SERA}
+     & \multicolumn{3}{c}{MAE} \\
+    \cmidrule(lr){2-4}\cmidrule(lr){5-7}\cmidrule(lr){8-10}
+    Method   & Mean & R1  & R5
+              & Mean & R1  & R5
+              & Mean & R1  & R5 \\
+    \midrule
+    \textbf{LDAO}
+              & \textbf{2.151}
+               & \textcolor{darkgreen}{\textbf{27}}
+               & 4
+              & \textbf{2.491}
+               & \textcolor{darkgreen}{\textbf{25}}
+               & 7
+              & \textbf{2.001}
+               & \textcolor{darkgreen}{\textbf{29}}
+               & 2 \\
+    BASELINE  & 2.817          & 9           & 1
+              & 3.106          & 2           & 5
+              & 2.843          & 6           & 1 \\
+    DENSELOSS & 3.257          & 3           & 12
+              & 3.118          & 4           & 10
+              & 3.353          & 0           & 11 \\
+    G‑SMOTE   & 3.025          & 5           & 5
+              & 3.286          & 1           & \textcolor{darkred}{\textbf{14}}
+              & 2.867          & 7           & 2 \\
+    SMOGN     & 3.749          & 1           & \textcolor{darkred}{\textbf{22}}
+              & 2.998          & 10          & 9
+              & 3.936          & 1           & \textcolor{darkred}{\textbf{28}} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
 
 
 
 \begin{figure}[H]
   \centering
-  \begin{minipage}[t]{\textwidth}
+  \begin{minipage}[t]{0.75\textwidth}
     \includegraphics[width=\textwidth]{small_dataset_rank_visual.pdf}
   \end{minipage}\\[1ex]
-  \begin{minipage}[t]{\textwidth}
+  \begin{minipage}[t]{0.75\textwidth}
     \includegraphics[width=\textwidth]{medium_dataset_rank_visual.pdf}
   \end{minipage}\\[1ex]
-  \begin{minipage}[t]{\textwidth}
+  \begin{minipage}[t]{0.75\textwidth}
     \includegraphics[width=\textwidth]{large_dataset_rank_visual.pdf}
   \end{minipage}
-  \caption{\footnotesize Visual representation of ranking performance across different dataset sizes. The top panel presents rankings for small datasets, the middle for medium datasets, and the bottom for large datasets. Rankings are determined relative to baseline performance, with rank 1 indicating the best performance. This visualization facilitates a comparative assessment of resampling methods under varying data size conditions.}
+  \caption{\footnotesize Mean ranking of oversampling methods by dataset size category. The top, middle, and bottom panels correspond to small, medium, and large datasets as defined in Table~\ref{tab:dataset-characteristics}.}
   \label{fig:ranking-combined}
 \end{figure}
-
-
-
-% \begin{figure}[H]
-%   \centering
-%   \begin{subfigure}[b]{0.48\textwidth}
-%     \centering
-%     \includegraphics[width=\textwidth]{median_score.png}
-%     \caption{\footnotesize Median cross-validation scores.}
-%     \label{fig:median_score_sub}
-%   \end{subfigure}
-%   \hfill
-%   \begin{subfigure}[b]{0.48\textwidth}
-%     \centering
-%     \includegraphics[width=\textwidth]{mean_score.png}
-%     \caption{\footnotesize Mean cross-validation scores.}
-%     \label{fig:mean_score_sub}
-%   \end{subfigure}
-%   \caption{\footnotesize Comparison of resampling method scores.}
-%   \label{fig:combined_scores}
-% \end{figure}
-
-
-
-% \begin{figure}[H]
-%   \centering
-%   % First minipage for ranking.png
-%   \begin{minipage}[t]{0.45\textwidth}
-%     \centering
-%     \includegraphics[width=\linewidth]{ranking.png}
-%     \captionof{figure}{Mean ranking of the preprocessing algorithms.}
-%     \label{fig:ranking}
-%   \end{minipage}\hfill
-%   % Second minipage for mean_ranking.png
-%   \begin{minipage}[t]{0.45\textwidth}
-%     \centering
-%     \includegraphics[width=\linewidth]{mean_ranking.png}
-%     \captionof{figure}{Mean ranking of the preprocessing algorithms (based on RMSE, SERA, and MAE) across datasets. Lower values indicate better overall performance.}
-%     \label{fig:mean_ranking}
-%   \end{minipage}
-% \end{figure}
-
-
-
-% \begin{table}[H]
-% \centering
-% \small
-% \setlength{\tabcolsep}{6pt}
-% \caption{Mean ranking of the preprocessing algorithms (based on RMSE, SERA, and MAE) across datasets.}
-% \label{tab:performance}
-% \resizebox{\textwidth}{!}{%
-%   \begin{tabular}{lccccc}
-%     \toprule
-%     \Metric & BASELINE & DENSELOSS & GSMOTE & SMOGN & LDAO \\
-%     \midrule
-%     \RMSE & 2.47 $\pm$ 1.05 & 3.69 $\pm$ 0.91 & 2.84 $\pm$ 1.13 & 4.11 $\pm$ 1.25 & \textbf{\textcolor{black}{1.89 $\pm$ 1.39}} \\[5pt]
-%     \SERA & 3.20 $\pm$ 1.19 & 3.18 $\pm$ 1.09 & 3.57 $\pm$ 1.15 & 2.68 $\pm$ 1.50 & \textbf{\textcolor{black}{2.36 $\pm$ 1.64}} \\[5pt]
-%     \MAE  & 2.53 $\pm$ 1.02 & 3.71 $\pm$ 0.96 & 2.67 $\pm$ 1.07 & 4.47 $\pm$ 0.83 & \textbf{\textcolor{black}{1.62 $\pm$ 1.12}} \\
-%     \bottomrule
-%   \end{tabular}
-% }
-% \end{table}
-
-
-% \begin{figure}[H]
-%     \centering
-%     \includegraphics[width=0.6\textwidth]{circle.png}
-% \caption{\footnotesize Circle.}
-%     \label{fig:method_large_image}
-% \end{figure}
-
-
-
-
-% \begin{table}[H]
-% \centering
-% \small
-% \setlength{\tabcolsep}{3pt}
-% \caption{RMSE (median $\pm$ std) for each dataset.}
-% \resizebox{\textwidth}{!}{%
-%   \begin{tabular}{lccccc}
-%     \toprule
-%     DATASET & BASELINE & SMOGN & DENSELOSS & G-SMOTE & LDAO \\
-%     \midrule
-% A1 & 55.669 $\pm$ 25.492 & 72.647 $\pm$ 26.499 & 67.345 $\pm$ 29.940 & 45.961 $\pm$ 14.194 & \textbf{\textcolor{black}{26.293 $\pm$ 1.565}} \\
-% A2 & 49.943 $\pm$ 32.350 & 55.964 $\pm$ 31.870 & 64.710 $\pm$ 36.397 & 45.925 $\pm$ 26.143 & \textbf{\textcolor{black}{14.946 $\pm$ 4.113}} \\
-% A3 & 44.209 $\pm$ 30.710 & 51.317 $\pm$ 31.180 & 50.288 $\pm$ 26.858 & 37.346 $\pm$ 22.215 & \textbf{\textcolor{black}{11.086 $\pm$ 3.751}} \\
-% A7 & 42.366 $\pm$ 31.924 & 36.288 $\pm$ 15.001 & 61.162 $\pm$ 43.880 & 49.733 $\pm$ 36.764 & \textbf{\textcolor{black}{8.371 $\pm$ 2.749}} \\
-% ABALONE & \textbf{\textcolor{black}{2.668 $\pm$ 0.068}} & 2.743 $\pm$ 0.059 & 2.675 $\pm$ 0.079 & 2.711 $\pm$ 0.067 & 2.767 $\pm$ 0.095 \\
-% ACCELERATION & 2.583 $\pm$ 0.508 & 3.832 $\pm$ 1.220 & 2.990 $\pm$ 0.385 & 3.089 $\pm$ 0.464 & \textbf{\textcolor{black}{1.390 $\pm$ 0.101}} \\
-% AIRFOLD & 49052.115 $\pm$ 2151.502 & 50937.814 $\pm$ 1429.837 & 49923.072 $\pm$ 3561.402 & 49851.099 $\pm$ 1236.929 & \textbf{\textcolor{black}{37388.347 $\pm$ 2427.343}} \\
-% ANALCAT & \textbf{\textcolor{black}{1418.803 $\pm$ 294.389}} & 2828.580 $\pm$ 547.619 & 1608.433 $\pm$ 511.328 & 1535.522 $\pm$ 442.940 & 1757.624 $\pm$ 964.853 \\
-% AUTOMPG6 & 3.599 $\pm$ 0.426 & 3.662 $\pm$ 0.510 & 3.624 $\pm$ 0.463 & 3.798 $\pm$ 0.661 & \textbf{\textcolor{black}{3.313 $\pm$ 0.392}} \\
-% AUTOMPG8 & 5.834 $\pm$ 2.386 & 11.420 $\pm$ 5.365 & 6.078 $\pm$ 3.023 & 3.872 $\pm$ 0.752 & \textbf{\textcolor{black}{3.270 $\pm$ 0.318}} \\
-% available_power & 21.974 $\pm$ 7.953 & 32.350 $\pm$ 3.002 & 22.736 $\pm$ 6.965 & 17.779 $\pm$ 3.136 & \textbf{\textcolor{black}{15.146 $\pm$ 3.290}} \\
-% BASEBALL & 933.443 $\pm$ 56.286 & 1094.921 $\pm$ 79.646 & 965.835 $\pm$ 112.578 & 884.565 $\pm$ 50.865 & \textbf{\textcolor{black}{837.922 $\pm$ 81.322}} \\
-% BOSTON & 8.835 $\pm$ 0.961 & 11.200 $\pm$ 2.448 & 9.620 $\pm$ 1.869 & 9.538 $\pm$ 1.214 & \textbf{\textcolor{black}{8.536 $\pm$ 0.822}} \\
-% CALIFORNIA & 68572.230 $\pm$ 1121.702 & 118863.934 $\pm$ 29433.847 & 68459.141 $\pm$ 1499.460 & 91649.408 $\pm$ 3576.670 & \textbf{\textcolor{black}{67966.735 $\pm$ 1611.171}} \\
-% COCOMO & 256.658 $\pm$ 72.726 & 249.036 $\pm$ 107.840 & 289.311 $\pm$ 85.143 & 260.887 $\pm$ 89.177 & \textbf{\textcolor{black}{214.760 $\pm$ 95.394}} \\
-% COMPACTIV & 18.014 $\pm$ 1.595 & 17.768 $\pm$ 1.468 & 18.772 $\pm$ 1.882 & 17.017 $\pm$ 0.855 & \textbf{\textcolor{black}{5.369 $\pm$ 1.073}} \\
-% CONCRETE\_STRENGTH & \textbf{\textcolor{black}{6.996 $\pm$ 0.431}} & 8.325 $\pm$ 1.257 & 7.135 $\pm$ 0.289 & 7.069 $\pm$ 0.335 & 7.340 $\pm$ 0.545 \\
-% CPU & 23.460 $\pm$ 6.664 & 23.546 $\pm$ 6.664 & 27.503 $\pm$ 7.831 & 24.142 $\pm$ 6.988 & \textbf{\textcolor{black}{7.228 $\pm$ 1.693}} \\
-% DEBUTANIZER & 0.118 $\pm$ 0.009 & 0.144 $\pm$ 0.006 & 0.119 $\pm$ 0.009 & 0.120 $\pm$ 0.005 & \textbf{\textcolor{black}{0.115 $\pm$ 0.010}} \\
-% DEE & 16.689 $\pm$ 4.097 & 16.114 $\pm$ 4.405 & 23.419 $\pm$ 15.579 & 10.601 $\pm$ 3.991 & \textbf{\textcolor{black}{2.250 $\pm$ 0.711}} \\
-% DIABETES & 0.825 $\pm$ 0.159 & 1.136 $\pm$ 0.352 & 1.028 $\pm$ 0.214 & 0.747 $\pm$ 0.144 & \textbf{\textcolor{black}{0.632 $\pm$ 0.151}} \\
-% ELE-1 & 655.856 $\pm$ 43.620 & 724.442 $\pm$ 56.814 & 675.941 $\pm$ 70.158 & \textbf{\textcolor{black}{639.805 $\pm$ 38.671}} & 667.288 $\pm$ 49.929 \\
-% ELE-2 & 172.872 $\pm$ 7.222 & 179.726 $\pm$ 9.876 & 174.189 $\pm$ 5.843 & 172.861 $\pm$ 6.828 & \textbf{\textcolor{black}{163.807 $\pm$ 15.263}} \\
-% FORESTFIRES & \textbf{\textcolor{black}{32.368 $\pm$ 13.987}} & 43.642 $\pm$ 16.142 & 41.712 $\pm$ 16.786 & 34.730 $\pm$ 15.264 & 37.867 $\pm$ 14.499 \\
-% FRIEDMAN & 2.603 $\pm$ 0.095 & 2.608 $\pm$ 0.086 & 2.625 $\pm$ 0.112 & 2.582 $\pm$ 0.119 & \textbf{\textcolor{black}{2.232 $\pm$ 0.567}} \\
-% FUEL & 1.409 $\pm$ 0.438 & 1.714 $\pm$ 0.560 & 1.584 $\pm$ 0.449 & \textbf{\textcolor{black}{1.065 $\pm$ 0.262}} & 1.143 $\pm$ 0.439 \\
-% HEAT & 5.575 $\pm$ 0.272 & 5.729 $\pm$ 0.250 & 5.824 $\pm$ 0.628 & 6.032 $\pm$ 0.474 & \textbf{\textcolor{black}{4.275 $\pm$ 0.282}} \\
-% HOUSE & 70628.846 $\pm$ 3889.972 & 68928.572 $\pm$ 2567.515 & 71587.308 $\pm$ 2984.008 & 72296.920 $\pm$ 2077.410 & \textbf{\textcolor{black}{48952.018 $\pm$ 2517.214}} \\
-% KDD & \textbf{\textcolor{black}{16.573 $\pm$ 1.950}} & 20.483 $\pm$ 2.296 & 16.682 $\pm$ 1.951 & 16.927 $\pm$ 2.356 & 17.731 $\pm$ 1.607 \\
-% LASER & \textbf{\textcolor{black}{6.490 $\pm$ 1.041}} & 8.041 $\pm$ 1.797 & 7.244 $\pm$ 1.360 & 7.927 $\pm$ 1.514 & 7.857 $\pm$ 1.749 \\
-% LUNGCANCER & \textbf{\textcolor{black}{2.669 $\pm$ 0.188}} & 3.647 $\pm$ 0.244 & 2.773 $\pm$ 0.194 & 2.964 $\pm$ 0.202 & 2.885 $\pm$ 0.195 \\
-% MACHINECPU & 70.324 $\pm$ 16.118 & 81.038 $\pm$ 17.018 & 78.517 $\pm$ 11.356 & 70.979 $\pm$ 12.327 & \textbf{\textcolor{black}{60.566 $\pm$ 16.922}} \\
-% MAXIMAL\_TORQUE & 24.179 $\pm$ 5.712 & 47.385 $\pm$ 8.450 & 38.376 $\pm$ 14.772 & 30.986 $\pm$ 6.000 & \textbf{\textcolor{black}{21.809 $\pm$ 4.144}} \\
-% META & 354.252 $\pm$ 125.624 & 352.787 $\pm$ 134.183 & 391.678 $\pm$ 121.253 & \textbf{\textcolor{black}{351.706 $\pm$ 117.247}} & 854.841 $\pm$ 277.247 \\
-% MORTGAGE & 0.394 $\pm$ 0.067 & 0.575 $\pm$ 0.179 & 0.398 $\pm$ 0.082 & 0.401 $\pm$ 0.112 & \textbf{\textcolor{black}{0.198 $\pm$ 0.028}} \\
-% PLASTIC & \textbf{\textcolor{black}{1.540 $\pm$ 0.048}} & 1.540 $\pm$ 0.051 & 1.565 $\pm$ 0.037 & 1.540 $\pm$ 0.049 & 2.222 $\pm$ 0.305 \\
-% POLE & 3.523 $\pm$ 0.463 & \textbf{\textcolor{black}{3.338 $\pm$ 0.333}} & 3.393 $\pm$ 0.230 & 3.355 $\pm$ 0.332 & 4.579 $\pm$ 0.440 \\
-% QUAKE & 0.238 $\pm$ 0.019 & 0.601 $\pm$ 0.036 & 0.250 $\pm$ 0.014 & 0.242 $\pm$ 0.012 & \textbf{\textcolor{black}{0.205 $\pm$ 0.013}} \\
-% SENSORY & 1.016 $\pm$ 0.223 & 0.970 $\pm$ 0.191 & 1.415 $\pm$ 0.341 & 0.887 $\pm$ 0.080 & \textbf{\textcolor{black}{0.834 $\pm$ 0.031}} \\
-% STOCK & 2.364 $\pm$ 0.066 & 2.344 $\pm$ 0.117 & 2.352 $\pm$ 0.119 & 2.337 $\pm$ 0.163 & \textbf{\textcolor{black}{1.948 $\pm$ 0.363}} \\
-% TREASURY & 0.446 $\pm$ 0.086 & 0.572 $\pm$ 0.149 & 0.457 $\pm$ 0.106 & 0.420 $\pm$ 0.056 & \textbf{\textcolor{black}{0.302 $\pm$ 0.061}} \\
-% TRIAZINES & \textbf{\textcolor{black}{0.149 $\pm$ 0.011}} & 0.170 $\pm$ 0.016 & 0.152 $\pm$ 0.017 & 0.166 $\pm$ 0.014 & 0.155 $\pm$ 0.010 \\
-% WANKARA & 2.750 $\pm$ 0.125 & 2.745 $\pm$ 0.077 & 2.742 $\pm$ 0.077 & 2.737 $\pm$ 0.120 & \textbf{\textcolor{black}{2.618 $\pm$ 0.155}} \\
-% WINE\_QUALITY & \textbf{\textcolor{black}{0.674 $\pm$ 0.017}} & 0.747 $\pm$ 0.044 & 0.681 $\pm$ 0.025 & 0.741 $\pm$ 0.034 & 0.679 $\pm$ 0.030 \\
-% WIZMIR & 1.249 $\pm$ 0.056 & \textbf{\textcolor{black}{1.245 $\pm$ 0.038}} & 1.254 $\pm$ 0.045 & 1.279 $\pm$ 0.063 & 1.274 $\pm$ 0.050 \\
-%     \bottomrule
-%   \end{tabular}%
-% }
-% \end{table}
-
-
-
-
-
-
 
 
 
 
 \section{Discussion}
 \label{sec:conclusion}
+
+An interesting observation is the strong performance of the baseline model relative to the oversampling methods. This result suggests that oversampling techniques may underperform without meticulous fine-tuning informed by domain knowledge and underscores the inherent complexity of the imbalanced regression problem compared to classification. In many continuous oversampling approaches, samples are categorized as either rare or frequent; although such a biased assumption can sometimes assist the learning process, it may also lead to diminished performance compared to the baseline. A key attribute of LDAO is its completely data-driven nature. Despite having a few parameters to adjust, LDAO does not require extensive domain expertise, making it readily applicable to a wide range of imbalanced datasets.
+
+\smallskip
 
 Oversampling approaches have the benefit of increasing representation in sparse regions. By generating synthetic samples, these methods can help models learn better from rare target values and improve performance where data is limited. The process involves creating additional data points in underrepresented areas, allowing machine learning models to develop a more complete understanding of the entire target value range. For regression tasks with imbalanced distributions, these techniques provide a practical solution to improve prediction accuracy across the entire spectrum of outcomes.
 
@@ -1000,13 +845,17 @@ Despite these advantages, oversampling methods encounter several limitations. Th
 \label{sec:conclusion}
 
 
-In this work, we proposed LDAO, a local distribution-based adaptive oversampling method specifically designed to address the challenges of imbalanced regression. By modeling data in a joint feature–target space and generating synthetic samples independently within identified clusters, LDAO effectively preserves the original dataset's statistical structure. Comprehensive experimental evaluations on a diverse collection of datasets demonstrated that LDAO consistently achieved strong predictive performance, often surpassing state-of-the-art approaches, especially in regions where data is limited.
+In this work, we proposed LDAO, a local distribution-based adaptive oversampling method specifically designed to address the challenges of imbalanced regression. By modeling data in a joint feature–target space and generating synthetic samples independently within identified clusters, LDAO effectively preserves the original dataset's statistical structure. Through comprehensive evaluation on a wide variety of datasets, we show that LDAO achieves strong and consistent predictive accuracy, frequently surpassing leading data‑level and algorithm‑level approaches, particularly where data are sparse.
 
 \smallskip
 
 Oversampling methods, in general, have proven effective at handling imbalance by improving model representation in sparse areas, yet each method has its unique strengths and applications. LDAO contributes to this field by eliminating the need for predefined rarity thresholds and undersampling, thereby preserving valuable information and offering adaptive, data-driven augmentation. As shown in our experiments, these attributes enable LDAO to maintain overall predictive accuracy while enhancing performance in challenging, underrepresented regions. Future work should continue to refine adaptive density-based sampling methods, particularly for datasets with complex, multimodal distributions.
 
 
+\section*{Declarations}
+
+\subsection*{Competing Interests}
+The authors declare that they have no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
 
 
 % ------------------------
@@ -1035,58 +884,47 @@ M.~Buda, A.~Maki, and M.~A.~Mazurowski, “A systematic study of the class imbal
 \bibitem{johnson2019}
 J.~M.~Johnson and T.~M.~Khoshgoftaar, “Survey on deep learning with class imbalance,”
 \emph{Journal of Big Data}, vol.~6, no.~1, pp. 1--54, 2019.
-
 %6
 \bibitem{liu2009}
 X.-Y.~Liu, J.~Wu, and Z.-H.~Zhou, “Exploratory undersampling for class-imbalance learning,”
 \emph{IEEE Transactions on Systems, Man, and Cybernetics, Part B (Cybernetics)}, vol.~39, no.~2, pp. 539--550, 2009.
-
 %7
 \bibitem{krawczyk2016}
 B.~Krawczyk, “Learning from imbalanced data: open challenges and future directions,”
 \emph{Progress in Artificial Intelligence}, vol.~5, no.~4, pp. 221--232, 2016.
-
-
 %8
 \bibitem{branco2016}
 P.~Branco, L.~Torgo, and R.~P.~Ribeiro, “A survey of predictive modeling under imbalanced distributions,”
 \emph{ACM Computing Surveys}, vol.~49, no.~2, Article 31, 2016.
-
 %9
 \bibitem{torgo2013}
 L.~Torgo, R.~P. Ribeiro, J.~P. da Costa, and S.~Pal,
 “SMOTE for regression,” in
 \emph{Intelligent Data Engineering and Automated Learning (IDEAL 2013). Lecture Notes in Computer Science}, vol.~8206, 2013, pp. 378--387.
-
 %10
 \bibitem{chawla2004}
 N.~V.~Chawla, N.~Japkowicz, and A.~Kolcz, “Editorial: Special issue on learning from imbalanced data sets,”
 \emph{ACM SIGKDD Explorations Newsletter}, vol.~6, no.~1, pp. 1--6, 2004.
-
 %11
 \bibitem{kaur24}
 A.~Kaur and M.~Sarmadi, “Comparative analysis of machine learning techniques
 for imbalanced genetic data,” \emph{Annals of Data Science}, 2024.
-
 %12
 \bibitem{scheepens23}
 D.~Scheepens, I.~Schicker, K.~Hlaváčková-Schindler, and C.~Plant,
 “Adapting a deep convolutional RNN model with imbalanced regression loss
 for improved spatio-temporal forecasting of extreme wind speed events 
 in the short to medium range,” \emph{Geosci. Model Dev.}, 2023.
-
 %13
 \bibitem{xu2022}
 Z.~Xu, C.~Zhao, C.~D.~Scales~Jr, R.~Henao, and B.~A.~Goldstein,
 “Predicting in-hospital length of stay: a two-stage modeling approach to account for highly skewed data,” 
 \emph{BMC Medical Informatics and Decision Making}, vol.~22, article~110, 2022.
-
 %14
 \bibitem{branco2017}
 P.~Branco, L.~Torgo, and R.~P. Ribeiro,
 “SMOGN: A pre-processing approach for imbalanced regression,” in
 \emph{Proceedings of Machine Learning Research: LIDTA}, vol.~74, 2017, pp. 36--50.
-
 %15
 \bibitem{steininger2021}
 M.~Steininger, K.~Kobs, P.~Davidson, A.~Krause, and A.~Hotho, 
@@ -1169,47 +1007,39 @@ R.~P.~Ribeiro and N.~Moniz, “Imbalanced regression and extreme value predictio
 \emph{Machine Learning}, vol.~109, no.~9--10, pp.~1803--1835, 2020.
 %37
 \bibitem{wang2020} X. Wang, J. Xu, T. Zeng, and L. Jing, "Local Distribution-based Adaptive Minority Oversampling for Imbalanced Data Classification," \emph{Neurocomputing}, 2020, doi:10.1016/j.neucom.2020.05.030.
-%37
+%38
 \bibitem{harrison1978hedonic}
 D.~Harrison and D.~L.~Rubinfeld, "Hedonic Prices and the Demand for Clean Air," \emph{Journal of Environmental Economics and Management}, vol.~5, no.~1, pp.~81--102, 1978.
-%38
-\bibitem{syakur2018}
-M.~Syakur, B.~Khotimah, E.~Rochman, and B.~Satoto, “Integration k-means clustering method and elbow method for identification of the best customer profile cluster,” \emph{IOP Conference Series: Materials Science and Engineering}, vol.~336, art.~012017, 2018, doi:10.1088/1757-899x/336/1/012017.
 %39
-\bibitem{nainggolan2019}
-R.~Nainggolan, R.~Perangin-angin, E.~Simarmata, and A.~Tarigan, “Improved the performance of the k-means cluster using the sum of squared error (sse) optimized by using the elbow method,” \emph{Journal of Physics: Conference Series}, vol.~1361, no.~1, art.~012015, 2019, doi:10.1088/1742-6596/1361/1/012015.
-%40
 \bibitem{sugar2003}
 J.~Sugar and P.~James, "Finding the Number of Clusters in a Dataset: An Information-Theoretic Approach," \emph{Journal of the American Statistical Association}, vol.~98, no.~463, pp.~750--763, 2003.
 %40
 \bibitem{ikotun2023}
 A.~Ikotun, A.~Ezugwu, L.~Abualigah, B.~Abuhaija, and H.~Jia, “K-means clustering algorithms: a comprehensive review, variants analysis, and advances in the era of big data,” \emph{Information Sciences}, vol.~622, pp.~178--210, 2023, doi:10.1016/j.ins.2022.11.139.
 %41
+\bibitem{syakur2018}
+M.~Syakur, B.~Khotimah, E.~Rochman, and B.~Satoto, “Integration k-means clustering method and elbow method for identification of the best customer profile cluster,” \emph{IOP Conference Series: Materials Science and Engineering}, vol.~336, art.~012017, 2018, doi:10.1088/1757-899x/336/1/012017.
+%42
+\bibitem{nainggolan2019}
+R.~Nainggolan, R.~Perangin-angin, E.~Simarmata, and A.~Tarigan, “Improved the performance of the k-means cluster using the sum of squared error (sse) optimized by using the elbow method,” \emph{Journal of Physics: Conference Series}, vol.~1361, no.~1, art.~012015, 2019, doi:10.1088/1742-6596/1361/1/012015.
+%43
 \bibitem{silverman1986}
 B.~W.~Silverman, "Density Estimation for Statistics and Data Analysis," \emph{Monographs on Statistics and Applied Probability}, Chapman and Hall, London, 1986.
-%42
+%44
 \bibitem{scott2015}
 D.~W.~Scott, "Multivariate Density Estimation: Theory, Practice, and Visualization," \emph{Wiley Series in Probability and Statistics}, 2nd ed., John Wiley \& Sons, Hoboken, New Jersey, 2015.
-%43
+%45
 \bibitem{sheather1991}
 S.~J.~Sheather and M.~C.~Jones, "A Reliable Data-Based Bandwidth Selection Method for Kernel Density Estimation," \emph{Journal of the Royal Statistical Society. Series B (Methodological)}, vol.~53, no.~3, pp.~683-690, 1991.
-%44
+%46
 \bibitem{zhang2006}
 X.~Zhang, M.~L.~King, and R.~J.~Hyndman, "A Bayesian approach to bandwidth selection for multivariate kernel density estimation," \emph{Computational Statistics \& Data Analysis}, vol.~50, no.~11, pp.~3009-3031, 2006.
-%45
+%47
 \bibitem{alcala2011}
 J.~Alcalá-Fdez, A.~Fernandez, J.~Luengo, J.~Derrac, S.~García, L.~Sánchez, and F.~Herrera, “KEEL Data-Mining Software Tool: Data Set Repository, Integration of Algorithms and Experimental Analysis Framework,” \emph{Journal of Multiple-Valued Logic and Soft Computing}, vol.~17, no.~2--3, pp.~255--287, 2011.
-%46
+%48
 \bibitem{avelino2024}
 J.~G.~Avelino, G.~D.~C.~Cavalcanti, and R.~M.~O.~Cruz, “Resampling strategies for imbalanced regression: a survey and empirical analysis,” \emph{Artificial Intelligence Review}, vol.~57, art.~82, 2024.
-% %47
-% \bibitem{friedman1937}
-% M.~Friedman, "The Use of Ranks to Avoid the Assumption of Normality in the Analysis of Variance," \emph{Journal of the American Statistical Association}, vol.~32, no.~200, pp.~675--701, 1937.
-% %48
-% \bibitem{demsar2006}
-% J.~Dem\v{s}ar, "Statistical Comparisons of Classifiers over Multiple Data Sets," \emph{Journal of Machine Learning Research}, vol.~7, pp.~1--30, 2006.
-\bibitem{wilcoxon1945}
-F.~Wilcoxon, "Individual comparisons by ranking methods," \emph{Biometrics Bulletin}, vol.~1, no.~6, pp.~80--83, 1945.
 %49
 \bibitem{wu2022}
 W.~Wu, N.~Kunz, and P.~Branco, "ImbalancedLearningRegression-A Python Package to Tackle the Imbalanced Regression Problem," in \emph{Joint European Conference on Machine Learning and Knowledge Discovery in Databases}, pp.~645--648, 2022.
@@ -1219,9 +1049,9 @@ N.~Kunz, "SMOGN: Synthetic Minority Over-Sampling Technique for Regression with 
 %51
 \bibitem{akiba2019}
 T.~Akiba, S.~Sano, T.~Yanase, T.~Ohta, and M.~Koyama, "Optuna: A Next-Generation Hyperparameter Optimization Framework," in \emph{The 25th ACM SIGKDD International Conference on Knowledge Discovery \& Data Mining}, pp.~2623--2631, 2019.
-% %52
-% \bibitem{benjamini1995}
-% Y.~Benjamini and Y.~Hochberg, "Controlling the False Discovery Rate: A Practical and Powerful Approach to Multiple Testing," \emph{Journal of the Royal Statistical Society, Series B (Methodological)}, vol.~57, no.~1, pp.~289--300, 1995.
+%52
+\bibitem{wilcoxon1945}
+F.~Wilcoxon, "Individual comparisons by ranking methods," \emph{Biometrics Bulletin}, vol.~1, no.~6, pp.~80--83, 1945.
 
 
 \end{thebibliography}
